@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useStore } from './store/useStore';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -14,22 +15,27 @@ import AddFolderModal from './components/AddFolderModal';
 import AddProjectModal from './components/AddProjectModal';
 import SettingsPage from './components/SettingsPage';
 import NotificationsPage from './components/NotificationsPage';
+import { useConvexAuth } from 'convex/react';
 
 type ViewState = 'onboarding' | 'login' | 'signup' | 'dashboard' | 'task-overview' | 'calendar' | 'team-members' | 'settings' | 'notifications';
 
-const App = () => {
-  const [currentView, setCurrentView] = useState<ViewState>('onboarding');
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
-  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
-  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') || 'light';
-    }
-    return 'light';
-  });
 
+
+const App = () => {
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  
+  const { 
+    theme, 
+    toggleTheme, 
+    currentView, 
+    setCurrentView,
+    isTaskModalOpen, openTaskModal, closeTaskModal,
+    isMemberModalOpen, openMemberModal, closeMemberModal,
+    isFolderModalOpen, openFolderModal, closeFolderModal,
+    isProjectModalOpen, openProjectModal, closeProjectModal
+  } = useStore();
+
+  // Sync theme on mount
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
@@ -37,89 +43,91 @@ const App = () => {
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+  // Redirect based on auth status
+  useEffect(() => {
+    if (!isLoading) {
+      if (isAuthenticated) {
+        if (['login', 'signup', 'onboarding'].includes(currentView)) {
+          setCurrentView('dashboard');
+        }
+      } else {
+        if (!['login', 'signup', 'onboarding'].includes(currentView)) {
+          setCurrentView('login');
+        }
+      }
+    }
+  }, [isAuthenticated, isLoading, currentView, setCurrentView]);
 
-  const openTaskModal = () => setIsTaskModalOpen(true);
-  const closeTaskModal = () => setIsTaskModalOpen(false);
-
-  const openMemberModal = () => setIsMemberModalOpen(true);
-  const closeMemberModal = () => setIsMemberModalOpen(false);
-
-  const openFolderModal = () => setIsFolderModalOpen(true);
-  const closeFolderModal = () => setIsFolderModalOpen(false);
-
-  const openProjectModal = () => setIsProjectModalOpen(true);
-  const closeProjectModal = () => setIsProjectModalOpen(false);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#F2F4F8] dark:bg-[#0F1115]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
 
   const renderContent = () => {
-    switch (currentView) {
-      case 'onboarding':
-        return <Onboarding onNavigate={(view) => setCurrentView(view as ViewState)} />;
-      case 'login':
-        return <Login onNavigate={(view) => setCurrentView(view as ViewState)} />;
-      case 'signup':
-        return <Signup onNavigate={(view) => setCurrentView(view as ViewState)} />;
-      case 'dashboard':
-      case 'task-overview':
-      case 'calendar':
-      case 'team-members':
-      case 'settings':
-      case 'notifications':
-        return (
-          <>
-            {/* Top Section (Mother Content) */}
-            <div className="relative z-10">
-              <Header 
-                theme={theme} 
-                toggleTheme={toggleTheme} 
-                onNavigate={(view) => setCurrentView(view as ViewState)}
+    if (!isAuthenticated) {
+      switch (currentView) {
+        case 'signup':
+          return <Signup onNavigate={(view) => setCurrentView(view as any)} />;
+        case 'onboarding': // Keep onboarding accessible if needed, or route to login
+           return <Onboarding onNavigate={(view) => setCurrentView(view as any)} />;
+        default:
+          return <Login onNavigate={(view) => setCurrentView(view as any)} />;
+      }
+    }
+
+    // Authenticated Views
+    return (
+      <>
+        {/* Top Section (Mother Content) */}
+        <div className="relative z-10">
+          <Header 
+            theme={theme} 
+            toggleTheme={toggleTheme} 
+            onNavigate={(view) => setCurrentView(view as any)}
+          />
+        </div>
+
+        {/* Son Container: Floating Liquid Glass Effect - Added pt-6 for spacing */}
+        <div className="flex-1 px-6 pb-6 pt-6 min-h-0 relative z-10 animate-fade-in">
+          <div className="flex h-full w-full rounded-[2.5rem] overflow-hidden relative shadow-2xl ring-1 ring-white/60 dark:ring-white/10">
+            
+            {/* Glass Material Layer */}
+            <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-3xl saturate-150 z-0 transition-colors duration-500"></div>
+            
+            {/* Content Wrapper */}
+            <div className="relative z-10 flex h-full w-full">
+              <Sidebar 
+                currentView={currentView} 
+                onNavigate={(view) => setCurrentView(view as any)} 
+                onAddProject={openFolderModal}
+                onCreateProject={openProjectModal}
               />
-            </div>
-
-            {/* Son Container: Floating Liquid Glass Effect - Added pt-6 for spacing */}
-            <div className="flex-1 px-6 pb-6 pt-6 min-h-0 relative z-10 animate-fade-in">
-              <div className="flex h-full w-full rounded-[2.5rem] overflow-hidden relative shadow-2xl ring-1 ring-white/60 dark:ring-white/10">
-                
-                {/* Glass Material Layer */}
-                <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-3xl saturate-150 z-0 transition-colors duration-500"></div>
-                
-                {/* Content Wrapper */}
-                <div className="relative z-10 flex h-full w-full">
-                  <Sidebar 
-                    currentView={currentView} 
-                    onNavigate={(view) => setCurrentView(view as ViewState)} 
-                    onAddProject={openFolderModal}
-                    onCreateProject={openProjectModal}
-                  />
+              
+              {/* Relative Container for Pages + Modal Overlay */}
+              <div className="flex-1 relative h-full overflow-hidden">
+                  {currentView === 'dashboard' && <Dashboard onAddTask={openTaskModal} onAddMember={openMemberModal} />}
+                  {currentView === 'task-overview' && <TaskOverview onAddTask={openTaskModal} onAddMember={openMemberModal} />}
+                  {currentView === 'calendar' && <CalendarPage onAddTask={openTaskModal} />}
+                  {currentView === 'team-members' && <TeamMembers onAddMember={openMemberModal} />}
+                  {currentView === 'settings' && <SettingsPage />}
+                  {currentView === 'notifications' && <NotificationsPage />}
                   
-                  {/* Relative Container for Pages + Modal Overlay */}
-                  <div className="flex-1 relative h-full overflow-hidden">
-                      {currentView === 'dashboard' && <Dashboard onAddTask={openTaskModal} onAddMember={openMemberModal} />}
-                      {currentView === 'task-overview' && <TaskOverview onAddTask={openTaskModal} onAddMember={openMemberModal} />}
-                      {currentView === 'calendar' && <CalendarPage onAddTask={openTaskModal} />}
-                      {currentView === 'team-members' && <TeamMembers onAddMember={openMemberModal} />}
-                      {currentView === 'settings' && <SettingsPage />}
-                      {currentView === 'notifications' && <NotificationsPage />}
-                      
-                      <AddTaskModal isOpen={isTaskModalOpen} onClose={closeTaskModal} />
-                      <AddMemberModal isOpen={isMemberModalOpen} onClose={closeMemberModal} />
-                      <AddFolderModal isOpen={isFolderModalOpen} onClose={closeFolderModal} />
-                      <AddProjectModal isOpen={isProjectModalOpen} onClose={closeProjectModal} />
-                  </div>
-                </div>
-
+                  <AddTaskModal isOpen={isTaskModalOpen} onClose={closeTaskModal} />
+                  <AddMemberModal isOpen={isMemberModalOpen} onClose={closeMemberModal} />
+                  <AddFolderModal isOpen={isFolderModalOpen} onClose={closeFolderModal} />
+                  <AddProjectModal isOpen={isProjectModalOpen} onClose={closeProjectModal} />
               </div>
             </div>
-          </>
-        );
-      default:
-        return <Onboarding onNavigate={(view) => setCurrentView(view as ViewState)} />;
-    }
+
+          </div>
+        </div>
+      </>
+    );
   };
 
   return (

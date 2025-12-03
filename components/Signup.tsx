@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
 import { 
   Mail, 
   Lock, 
@@ -21,7 +24,13 @@ interface SignupProps {
 }
 
 const Signup: React.FC<SignupProps> = ({ onNavigate }) => {
+  const { signIn } = useAuthActions();
+  const updateProfile = useMutation(api.users.update);
+  const createTeam = useMutation(api.teams.create);
+  
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -34,6 +43,42 @@ const Signup: React.FC<SignupProps> = ({ onNavigate }) => {
 
   const handleNext = () => setStep(prev => prev + 1);
   const handleBack = () => setStep(prev => prev - 1);
+
+  const handleSignup = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      // Step 1: Sign up with email/password
+      await signIn("password", { 
+        email: formData.email, 
+        password: formData.password,
+        flow: "signUp"
+      });
+
+      // Step 2: Update profile with additional info
+      await updateProfile({
+        name: formData.name,
+        role: formData.role,
+        phone: formData.phone,
+        avatar: formData.avatar
+      });
+
+      // Step 3: Create team/workspace
+      if (formData.workspace) {
+        await createTeam({
+          name: formData.workspace,
+          privacy: "private"
+        });
+      }
+
+      // Navigate to dashboard
+      onNavigate('dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Signup failed. Please try again.');
+      setLoading(false);
+    }
+  };
 
   // Step 1: Credentials
   const renderStep1 = () => (
@@ -227,13 +272,20 @@ const Signup: React.FC<SignupProps> = ({ onNavigate }) => {
                 </button>
              ) : (
                 <button 
-                  onClick={() => onNavigate('dashboard')}
-                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-lg shadow-xl shadow-gray-900/20 hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  onClick={handleSignup}
+                  disabled={loading}
+                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-lg shadow-xl shadow-gray-900/20 hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Account
+                  {loading ? 'Creating Account...' : 'Create Account'}
                   <Check size={20} />
                 </button>
              )}
+              
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm font-medium">
+                  {error}
+                </div>
+              )}
           </div>
 
           <p className="mt-8 text-center text-gray-500">

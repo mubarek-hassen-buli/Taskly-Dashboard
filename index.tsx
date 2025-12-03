@@ -7,9 +7,13 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
+import { ConvexClientProvider } from './components/ConvexClientProvider';
+
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <ConvexClientProvider>
+      <App />
+    </ConvexClientProvider>
   </React.StrictMode>
 );

@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
 import { 
   User, 
   Bell, 
@@ -10,9 +12,61 @@ import {
   Globe,
   Monitor
 } from 'lucide-react';
-import { CURRENT_USER } from '../constants';
 
 const SettingsPage: React.FC = () => {
+  const currentUser = useQuery(api.users.current);
+  const updateProfile = useMutation(api.users.update);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: '',
+    avatar: ''
+  });
+  
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  // Sync form data when user loads
+  React.useEffect(() => {
+    if (currentUser) {
+      setFormData({
+        name: currentUser.name || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        role: currentUser.role || '',
+        avatar: currentUser.avatar || ''
+      });
+    }
+  }, [currentUser]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    setSuccess(false);
+    try {
+      await updateProfile({
+        name: formData.name,
+        role: formData.role,
+        phone: formData.phone,
+        avatar: formData.avatar
+      });
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
   return (
     <main className="flex-1 p-8 h-full flex flex-col min-h-0 custom-scrollbar overflow-y-auto">
       {/* Header */}
@@ -29,10 +83,20 @@ const SettingsPage: React.FC = () => {
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage your account and preferences.</p>
           </div>
           
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-200 transition-colors shadow-lg shadow-gray-200 dark:shadow-none">
+          <button 
+            onClick={handleSave}
+            disabled={loading}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-200 transition-colors shadow-lg shadow-gray-200 dark:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+          >
              <Save size={16} />
-             Save Changes
+             {loading ? 'Saving...' : 'Save Changes'}
           </button>
+          
+          {success && (
+            <div className="absolute top-full mt-2 right-0 p-3 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm font-medium shadow-lg">
+              Profile updated successfully!
+            </div>
+          )}
         </div>
       </div>
 
@@ -45,8 +109,8 @@ const SettingsPage: React.FC = () => {
                <div className="relative group cursor-pointer mb-4">
                   <div className="w-32 h-32 rounded-full p-1 border-2 border-dashed border-gray-300 dark:border-gray-600 group-hover:border-purple-500 transition-colors">
                      <img 
-                       src={CURRENT_USER.avatar} 
-                       alt={CURRENT_USER.name} 
+                       src={currentUser.avatar || 'https://via.placeholder.com/128'} 
+                       alt={currentUser.name} 
                        className="w-full h-full rounded-full object-cover" 
                      />
                   </div>
@@ -54,8 +118,8 @@ const SettingsPage: React.FC = () => {
                      <Camera size={16} />
                   </div>
                </div>
-               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{CURRENT_USER.name}</h2>
-               <p className="text-purple-600 dark:text-purple-400 font-medium text-sm">{CURRENT_USER.role}</p>
+               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{currentUser.name}</h2>
+               <p className="text-purple-600 dark:text-purple-400 font-medium text-sm">{currentUser.role}</p>
             </div>
           </div>
         </div>
@@ -78,19 +142,39 @@ const SettingsPage: React.FC = () => {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 ml-1">Full Name</label>
-                   <input type="text" defaultValue={CURRENT_USER.name} className="w-full bg-white/50 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
+                   <input 
+                     type="text" 
+                     value={formData.name} 
+                     onChange={(e) => setFormData({...formData, name: e.target.value})}
+                     className="w-full bg-white/50 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20" 
+                   />
                 </div>
                 <div className="space-y-2">
                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 ml-1">Email Address</label>
-                   <input type="email" defaultValue={CURRENT_USER.email} className="w-full bg-white/50 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
+                   <input 
+                     type="email" 
+                     value={formData.email} 
+                     disabled
+                     className="w-full bg-gray-100 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-500 dark:text-gray-400 cursor-not-allowed" 
+                   />
                 </div>
                 <div className="space-y-2">
                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 ml-1">Phone Number</label>
-                   <input type="tel" defaultValue="+1 (555) 000-0000" className="w-full bg-white/50 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
+                   <input 
+                     type="tel" 
+                     value={formData.phone} 
+                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                     className="w-full bg-white/50 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20" 
+                   />
                 </div>
                 <div className="space-y-2">
                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 ml-1">Role</label>
-                   <input type="text" defaultValue={CURRENT_USER.role} className="w-full bg-white/50 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
+                   <input 
+                     type="text" 
+                     value={formData.role} 
+                     onChange={(e) => setFormData({...formData, role: e.target.value})}
+                     className="w-full bg-white/50 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20" 
+                   />
                 </div>
              </div>
           </section>
