@@ -1,0 +1,169 @@
+import React, { useState, useEffect } from 'react';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import Dashboard from './components/Dashboard';
+import TaskOverview from './components/TaskOverview';
+import CalendarPage from './components/CalendarPage';
+import TeamMembers from './components/TeamMembers';
+import Onboarding from './components/Onboarding';
+import Login from './components/Login';
+import Signup from './components/Signup';
+import AddTaskModal from './components/AddTaskModal';
+import AddMemberModal from './components/AddMemberModal';
+import AddFolderModal from './components/AddFolderModal';
+import AddProjectModal from './components/AddProjectModal';
+import SettingsPage from './components/SettingsPage';
+import NotificationsPage from './components/NotificationsPage';
+
+type ViewState = 'onboarding' | 'login' | 'signup' | 'dashboard' | 'task-overview' | 'calendar' | 'team-members' | 'settings' | 'notifications';
+
+const App = () => {
+  const [currentView, setCurrentView] = useState<ViewState>('onboarding');
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') || 'light';
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  const openTaskModal = () => setIsTaskModalOpen(true);
+  const closeTaskModal = () => setIsTaskModalOpen(false);
+
+  const openMemberModal = () => setIsMemberModalOpen(true);
+  const closeMemberModal = () => setIsMemberModalOpen(false);
+
+  const openFolderModal = () => setIsFolderModalOpen(true);
+  const closeFolderModal = () => setIsFolderModalOpen(false);
+
+  const openProjectModal = () => setIsProjectModalOpen(true);
+  const closeProjectModal = () => setIsProjectModalOpen(false);
+
+  const renderContent = () => {
+    switch (currentView) {
+      case 'onboarding':
+        return <Onboarding onNavigate={(view) => setCurrentView(view as ViewState)} />;
+      case 'login':
+        return <Login onNavigate={(view) => setCurrentView(view as ViewState)} />;
+      case 'signup':
+        return <Signup onNavigate={(view) => setCurrentView(view as ViewState)} />;
+      case 'dashboard':
+      case 'task-overview':
+      case 'calendar':
+      case 'team-members':
+      case 'settings':
+      case 'notifications':
+        return (
+          <>
+            {/* Top Section (Mother Content) */}
+            <div className="relative z-10">
+              <Header 
+                theme={theme} 
+                toggleTheme={toggleTheme} 
+                onNavigate={(view) => setCurrentView(view as ViewState)}
+              />
+            </div>
+
+            {/* Son Container: Floating Liquid Glass Effect - Added pt-6 for spacing */}
+            <div className="flex-1 px-6 pb-6 pt-6 min-h-0 relative z-10 animate-fade-in">
+              <div className="flex h-full w-full rounded-[2.5rem] overflow-hidden relative shadow-2xl ring-1 ring-white/60 dark:ring-white/10">
+                
+                {/* Glass Material Layer */}
+                <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-3xl saturate-150 z-0 transition-colors duration-500"></div>
+                
+                {/* Content Wrapper */}
+                <div className="relative z-10 flex h-full w-full">
+                  <Sidebar 
+                    currentView={currentView} 
+                    onNavigate={(view) => setCurrentView(view as ViewState)} 
+                    onAddProject={openFolderModal}
+                    onCreateProject={openProjectModal}
+                  />
+                  
+                  {/* Relative Container for Pages + Modal Overlay */}
+                  <div className="flex-1 relative h-full overflow-hidden">
+                      {currentView === 'dashboard' && <Dashboard onAddTask={openTaskModal} onAddMember={openMemberModal} />}
+                      {currentView === 'task-overview' && <TaskOverview onAddTask={openTaskModal} onAddMember={openMemberModal} />}
+                      {currentView === 'calendar' && <CalendarPage onAddTask={openTaskModal} />}
+                      {currentView === 'team-members' && <TeamMembers onAddMember={openMemberModal} />}
+                      {currentView === 'settings' && <SettingsPage />}
+                      {currentView === 'notifications' && <NotificationsPage />}
+                      
+                      <AddTaskModal isOpen={isTaskModalOpen} onClose={closeTaskModal} />
+                      <AddMemberModal isOpen={isMemberModalOpen} onClose={closeMemberModal} />
+                      <AddFolderModal isOpen={isFolderModalOpen} onClose={closeFolderModal} />
+                      <AddProjectModal isOpen={isProjectModalOpen} onClose={closeProjectModal} />
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </>
+        );
+      default:
+        return <Onboarding onNavigate={(view) => setCurrentView(view as ViewState)} />;
+    }
+  };
+
+  return (
+    // Mother Container with Ambient Background
+    <div className="flex flex-col h-screen w-full relative overflow-hidden bg-[#F2F4F8] dark:bg-[#0F1115] transition-colors duration-500">
+      
+      {/* Ambient Light/Liquid Background Layer */}
+      <div className="absolute inset-0 pointer-events-none transition-opacity duration-1000">
+        {/* Top Left Purple Blob */}
+        <div className="absolute top-[-10%] left-[-5%] w-[40vw] h-[40vw] bg-purple-300/30 dark:bg-purple-900/20 rounded-full blur-[100px] animate-blob transition-colors duration-500" />
+        {/* Top Right Blue Blob */}
+        <div className="absolute top-[-10%] right-[-5%] w-[40vw] h-[40vw] bg-blue-300/30 dark:bg-blue-900/20 rounded-full blur-[100px] animate-blob animation-delay-2000 transition-colors duration-500" />
+        {/* Bottom Left Pink Blob */}
+        <div className="absolute bottom-[-10%] left-[10%] w-[50vw] h-[50vw] bg-pink-300/30 dark:bg-pink-900/20 rounded-full blur-[120px] animate-blob animation-delay-4000 transition-colors duration-500" />
+      </div>
+
+      {renderContent()}
+
+      <style>{`
+        @keyframes blob {
+          0% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+          100% { transform: translate(0px, 0px) scale(1); }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+        @keyframes fade-in {
+          from { opacity: 0; transform: scale(0.98); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default App;
