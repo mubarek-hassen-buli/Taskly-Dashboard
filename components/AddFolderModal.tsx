@@ -1,20 +1,73 @@
 import React, { useState } from 'react';
 import { X, FolderPlus, Palette, Check } from 'lucide-react';
+import { useMutation } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { useStore } from '../store/useStore';
 
 interface AddFolderModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// Color mapping from Tailwind classes to hex
+const COLOR_MAP: Record<string, string> = {
+  'bg-purple-500': '#8B5CF6',
+  'bg-blue-500': '#3B82F6',
+  'bg-pink-500': '#EC4899',
+  'bg-orange-500': '#F97316',
+  'bg-green-500': '#10B981',
+  'bg-gray-500': '#6B7280',
+  'bg-cyan-500': '#06B6D4',
+  'bg-red-500': '#EF4444',
+};
+
 const AddFolderModal: React.FC<AddFolderModalProps> = ({ isOpen, onClose }) => {
+  const { currentTeamId } = useStore();
+  const createFolder = useMutation(api.folders.create);
+  
   const [folderName, setFolderName] = useState('');
   const [selectedColor, setSelectedColor] = useState('bg-purple-500');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const colors = [
     'bg-purple-500', 'bg-blue-500', 'bg-pink-500', 
     'bg-orange-500', 'bg-green-500', 'bg-gray-500',
     'bg-cyan-500', 'bg-red-500'
   ];
+
+  const handleCreateFolder = async () => {
+    if (!folderName.trim()) {
+      setError('Folder name is required');
+      return;
+    }
+
+    if (!currentTeamId) {
+      setError('No team selected. Please refresh the page.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await createFolder({
+        teamId: currentTeamId as any,
+        name: folderName.trim(),
+        color: COLOR_MAP[selectedColor],
+      });
+
+      // Success - close modal and reset
+      setFolderName('');
+      setSelectedColor('bg-purple-500');
+      onClose();
+    } catch (err: any) {
+      console.error('Error creating folder:', err);
+      setError(err.message || 'Failed to create folder');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -56,6 +109,11 @@ const AddFolderModal: React.FC<AddFolderModalProps> = ({ isOpen, onClose }) => {
                         placeholder="e.g. Mobile Apps" 
                         className="w-full pl-9 text-2xl font-bold bg-transparent border-none placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white focus:ring-0 py-2 transition-all"
                         autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !loading) {
+                            handleCreateFolder();
+                          }
+                        }}
                       />
                   </div>
                   <div className="h-px w-full bg-gradient-to-r from-gray-200 via-gray-100 to-transparent dark:from-white/10 dark:via-white/5"></div>
@@ -69,6 +127,7 @@ const AddFolderModal: React.FC<AddFolderModalProps> = ({ isOpen, onClose }) => {
                      {colors.map((color, idx) => (
                         <button 
                             key={idx}
+                            type="button"
                             onClick={() => setSelectedColor(color)}
                             className={`w-8 h-8 rounded-full ${color} transition-all flex items-center justify-center ring-2 ring-transparent ${selectedColor === color ? 'ring-gray-300 dark:ring-gray-600 scale-110' : 'hover:scale-110'}`}
                         >
@@ -77,22 +136,30 @@ const AddFolderModal: React.FC<AddFolderModalProps> = ({ isOpen, onClose }) => {
                      ))}
                   </div>
               </div>
+
+              {error && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium">
+                  {error}
+                </div>
+              )}
           </div>
 
           {/* Footer */}
           <div className="px-8 py-5 bg-white/50 dark:bg-[#121212]/50 border-t border-gray-100 dark:border-white/5 flex items-center justify-end gap-3 backdrop-blur-xl">
              <button 
                onClick={onClose}
-               className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+               disabled={loading}
+               className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
              >
                Cancel
              </button>
              <button 
-               onClick={onClose}
-               className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-200 hover:shadow-lg hover:shadow-gray-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2"
+               onClick={handleCreateFolder}
+               disabled={loading || !folderName.trim()}
+               className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-200 hover:shadow-lg hover:shadow-gray-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
              >
                <FolderPlus size={16} />
-               Create Folder
+               {loading ? 'Creating...' : 'Create Folder'}
              </button>
           </div>
        </div>

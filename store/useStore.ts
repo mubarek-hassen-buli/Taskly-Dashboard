@@ -17,6 +17,8 @@ interface AppState {
   setCurrentTeamId: (id: string | null) => void;
   currentProjectId: string | null;
   setCurrentProjectId: (id: string | null) => void;
+  selectedFolderId: string | null;
+  setSelectedFolderId: (id: string | null) => void;
 
   // Modals
   isTaskModalOpen: boolean;
@@ -68,6 +70,8 @@ export const useStore = create<AppState>((set) => ({
   setCurrentTeamId: (id) => set({ currentTeamId: id }),
   currentProjectId: null,
   setCurrentProjectId: (id) => set({ currentProjectId: id }),
+  selectedFolderId: null,
+  setSelectedFolderId: (id) => set({ selectedFolderId: id }),
 
   // Modals
   isTaskModalOpen: false,

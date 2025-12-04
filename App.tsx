@@ -150,7 +150,11 @@ const App = () => {
                   <AddTaskModal isOpen={isTaskModalOpen} onClose={closeTaskModal} />
                   <AddMemberModal isOpen={isMemberModalOpen} onClose={closeMemberModal} />
                   <AddFolderModal isOpen={isFolderModalOpen} onClose={closeFolderModal} />
-                  <AddProjectModal isOpen={isProjectModalOpen} onClose={closeProjectModal} />
+                  <AddProjectModal 
+                    isOpen={isProjectModalOpen} 
+                    onClose={closeProjectModal} 
+                    folderId={useStore.getState().selectedFolderId as any}
+                  />
               </div>
             </div>
 

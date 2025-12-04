@@ -1,21 +1,79 @@
 import React, { useState } from 'react';
 import { X, FolderPlus, Palette, Layout, Check, Calendar } from 'lucide-react';
+import { useMutation } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { useStore } from '../store/useStore';
+import { Id } from '../convex/_generated/dataModel';
 
 interface AddProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  folderId?: Id<"folders">; // Optional folder ID to create project in
 }
 
-const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose }) => {
+// Color mapping from Tailwind classes to hex
+const COLOR_MAP: Record<string, string> = {
+  'bg-purple-500': '#8B5CF6',
+  'bg-blue-500': '#3B82F6',
+  'bg-pink-500': '#EC4899',
+  'bg-orange-500': '#F97316',
+  'bg-green-500': '#10B981',
+  'bg-gray-500': '#6B7280',
+  'bg-cyan-500': '#06B6D4',
+  'bg-red-500': '#EF4444',
+};
+
+const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, folderId }) => {
+  const { currentTeamId } = useStore();
+  const createProject = useMutation(api.projects.create);
+  
   const [projectName, setProjectName] = useState('');
   const [selectedColor, setSelectedColor] = useState('bg-purple-500');
   const [dueDate, setDueDate] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const colors = [
     'bg-purple-500', 'bg-blue-500', 'bg-pink-500', 
     'bg-orange-500', 'bg-green-500', 'bg-gray-500',
     'bg-cyan-500', 'bg-red-500'
   ];
+
+  const handleCreateProject = async () => {
+    if (!projectName.trim()) {
+      setError('Project name is required');
+      return;
+    }
+
+    if (!currentTeamId) {
+      setError('No team selected. Please refresh the page.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await createProject({
+        teamId: currentTeamId as any,
+        folderId: folderId || undefined,
+        name: projectName.trim(),
+        color: COLOR_MAP[selectedColor],
+        dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
+      });
+
+      // Success - close modal and reset
+      setProjectName('');
+      setSelectedColor('bg-purple-500');
+      setDueDate('');
+      onClose();
+    } catch (err: any) {
+      console.error('Error creating project:', err);
+      setError(err.message || 'Failed to create project');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -59,6 +117,11 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose }) =>
                    placeholder="e.g. Website Redesign" 
                    className="w-full pl-9 text-2xl font-bold bg-transparent border-none placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white focus:ring-0 py-2 transition-all"
                    autoFocus
+                   onKeyDown={(e) => {
+                     if (e.key === 'Enter' && !loading) {
+                       handleCreateProject();
+                     }
+                   }}
                  />
               </div>
               <div className="h-px w-full bg-gradient-to-r from-gray-200 via-gray-100 to-transparent dark:from-white/10 dark:via-white/5"></div>
@@ -88,6 +151,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose }) =>
                  {colors.map((color, idx) => (
                     <button 
                         key={idx}
+                        type="button"
                         onClick={() => setSelectedColor(color)}
                         className={`w-8 h-8 rounded-full ${color} transition-all flex items-center justify-center ring-2 ring-transparent ${selectedColor === color ? 'ring-gray-300 dark:ring-gray-600 scale-110' : 'hover:scale-110'}`}
                     >
@@ -97,22 +161,30 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose }) =>
               </div>
            </div>
 
+           {error && (
+             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium">
+               {error}
+             </div>
+           )}
+
         </div>
 
         {/* Footer */}
         <div className="px-8 py-5 bg-white/50 dark:bg-[#121212]/50 border-t border-gray-100 dark:border-white/5 flex items-center justify-end gap-3 backdrop-blur-xl">
            <button 
              onClick={onClose}
-             className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+             disabled={loading}
+             className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
            >
              Cancel
            </button>
            <button 
-             onClick={onClose}
-             className="flex items-center gap-2 px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-200 hover:shadow-lg hover:shadow-gray-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0 transition-all"
+             onClick={handleCreateProject}
+             disabled={loading || !projectName.trim()}
+             className="flex items-center gap-2 px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-200 hover:shadow-lg hover:shadow-gray-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
            >
              <FolderPlus size={16} />
-             Create Project
+             {loading ? 'Creating...' : 'Create Project'}
            </button>
         </div>
 
