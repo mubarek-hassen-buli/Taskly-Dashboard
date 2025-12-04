@@ -43,6 +43,39 @@ export const create = mutation({
 });
 
 /**
+ * List all members of a team.
+ */
+export const listMembers = query({
+  args: {
+    teamId: v.id("teams"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    // Check if user is a member of this team
+    const membership = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_team_and_user", (q) =>
+        q.eq("teamId", args.teamId).eq("userId", userId)
+      )
+      .unique();
+
+    if (!membership) {
+      throw new Error("You are not a member of this team");
+    }
+
+    // Get all team members
+    const members = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
+      .collect();
+
+    return members;
+  },
+});
+
+/**
  * Get all teams the current user is a member of.
  */
 export const getByUser = query({

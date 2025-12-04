@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Plus, Search, Filter, Columns, List } from 'lucide-react';
-import { TASKS, TEAM_MEMBERS, getTaskStatus } from '../constants';
+import { useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { useStore } from '../store/useStore';
 import { TabStatus } from '../types';
 import TaskCard from './TaskCard';
 
@@ -10,6 +12,26 @@ interface TaskOverviewProps {
 }
 
 const TaskOverview: React.FC<TaskOverviewProps> = ({ onAddTask, onAddMember }) => {
+  const { currentTeamId, currentProjectId } = useStore();
+
+  // Fetch tasks for the selected project
+  const tasks = useQuery(api.tasks.list, currentProjectId ? { projectId: currentProjectId as any } : "skip");
+  
+  // Fetch team members for the current team
+  const teamMembers = useQuery(api.teams.listMembers, currentTeamId ? { teamId: currentTeamId as any } : "skip");
+  
+  // Fetch user details for team members
+  const users = useQuery(api.users.list);
+  
+  // Map team members to user details
+  const teamMembersWithDetails = useMemo(() => {
+    if (!teamMembers || !users) return [];
+    return teamMembers.map(member => {
+      const user = users.find(u => u._id === member.userId);
+      return user ? { ...user, role: member.role } : null;
+    }).filter(Boolean);
+  }, [teamMembers, users]);
+
   const columns = [
     { id: TabStatus.ToDo, label: 'To Do', color: 'bg-yellow-500' },
     { id: TabStatus.InProgress, label: 'In Progress', color: 'bg-blue-500' },
@@ -30,7 +52,9 @@ const TaskOverview: React.FC<TaskOverviewProps> = ({ onAddTask, onAddMember }) =
         <div className="flex items-end justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Task Overview</h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage and track your projects in real-time.</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+              {currentProjectId ? 'Manage and track your project tasks in real-time.' : 'Select a project from the sidebar to view tasks.'}
+            </p>
           </div>
           
           <div className="flex items-center gap-3">
@@ -47,9 +71,20 @@ const TaskOverview: React.FC<TaskOverviewProps> = ({ onAddTask, onAddMember }) =
              <div className="h-8 w-px bg-gray-300/50 dark:bg-white/10 mx-2"></div>
 
              <div className="flex -space-x-2 mr-2">
-                {TEAM_MEMBERS.map((m, i) => (
-                  <img key={i} src={m.avatar} className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800" alt={m.name} />
+                {teamMembersWithDetails.slice(0, 4).map((member: any, i) => (
+                  <img 
+                    key={i} 
+                    src={member.avatar || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
+                    className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800" 
+                    alt={member.name} 
+                    title={member.name}
+                  />
                 ))}
+                {teamMembersWithDetails.length > 4 && (
+                  <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">
+                    +{teamMembersWithDetails.length - 4}
+                  </div>
+                )}
                 <button 
                   onClick={onAddMember}
                   className="w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -93,7 +128,7 @@ const TaskOverview: React.FC<TaskOverviewProps> = ({ onAddTask, onAddMember }) =
       {/* Kanban Board */}
       <div className="flex gap-6 overflow-x-auto pb-4 h-full custom-scrollbar">
         {columns.map(col => {
-          const colTasks = TASKS.filter(t => getTaskStatus(t.id) === col.id);
+          const colTasks = tasks?.filter(t => t.status === col.id) || [];
           
           return (
             <div key={col.id} className="min-w-[320px] max-w-[320px] flex flex-col h-full">
@@ -114,7 +149,7 @@ const TaskOverview: React.FC<TaskOverviewProps> = ({ onAddTask, onAddMember }) =
               {/* Column Content */}
               <div className="flex-1 bg-white/30 dark:bg-black/20 backdrop-blur-md border border-white/40 dark:border-white/5 rounded-[2rem] p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
                   {colTasks.map(task => (
-                      <TaskCard key={task.id} task={task} />
+                      <TaskCard key={task._id} task={task} />
                   ))}
                   
                   {colTasks.length === 0 && (

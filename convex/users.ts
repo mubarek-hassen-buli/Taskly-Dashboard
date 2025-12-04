@@ -134,3 +134,18 @@ export const update = mutation({
     });
   },
 });
+
+/**
+ * List all users (for team member lookups).
+ */
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    // Return all users (you may want to add pagination later)
+    const users = await ctx.db.query("users").collect();
+    return users;
+  },
+});
