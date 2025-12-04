@@ -1,11 +1,11 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Users } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
 import { TabStatus } from '../types';
-import { TEAM_MEMBERS } from '../constants';
 import TaskCard from './TaskCard';
 import ChatWidget from './ChatWidget';
 import CalendarWidget from './CalendarWidget';
@@ -31,6 +31,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
   
   // Fetch tasks for the selected project
   const tasks = useQuery(api.tasks.list, currentProjectId ? { projectId: currentProjectId as any } : "skip");
+
+  // Fetch team members for the current team
+  const teamMembers = useQuery(api.teams.listMembers, currentTeamId ? { teamId: currentTeamId as any } : "skip");
+  
+  // Fetch user details for team members
+  const users = useQuery(api.users.list);
+  
+  // Map team members to user details
+  const teamMembersWithDetails = useMemo(() => {
+    if (!teamMembers || !users) return [];
+    return teamMembers.map(member => {
+      const user = users.find(u => u._id === member.userId);
+      return user ? { ...user, role: member.role } : null;
+    }).filter(Boolean);
+  }, [teamMembers, users]);
 
   // Set current team on mount
   useEffect(() => {
@@ -104,10 +119,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
 
                <div className="flex items-center gap-3 ml-4">
                   <div className="flex -space-x-2">
-                    {TEAM_MEMBERS.map((m, i) => (
-                      <img key={i} src={m.avatar} className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800" alt={m.name} />
+                    {teamMembersWithDetails.slice(0, 4).map((member: any, i) => (
+                      <img 
+                        key={i} 
+                        src={member.avatar || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
+                        className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800" 
+                        alt={member.name}
+                        title={member.name}
+                      />
                     ))}
-                    <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400">+6</div>
+                    {teamMembersWithDetails.length > 4 && (
+                      <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400">
+                        +{teamMembersWithDetails.length - 4}
+                      </div>
+                    )}
                   </div>
                   <button 
                     onClick={onAddMember}

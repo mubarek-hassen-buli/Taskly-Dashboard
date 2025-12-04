@@ -1,14 +1,37 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Filter, Mail, MoreHorizontal, Plus, Edit, Trash2, CheckCircle, Shield } from 'lucide-react';
-import { TEAM_MEMBERS } from '../constants';
+import { useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { useStore } from '../store/useStore';
 
 interface TeamMembersProps {
   onAddMember?: () => void;
 }
 
 const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
+  const { currentTeamId } = useStore();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fetch team members for the current team
+  const teamMembers = useQuery(api.teams.listMembers, currentTeamId ? { teamId: currentTeamId as any } : "skip");
+  
+  // Fetch user details for team members
+  const users = useQuery(api.users.list);
+  
+  // Map team members to user details
+  const teamMembersWithDetails = useMemo(() => {
+    if (!teamMembers || !users) return [];
+    return teamMembers.map(member => {
+      const user = users.find(u => u._id === member.userId);
+      return user ? { 
+        ...user, 
+        role: member.role,
+        status: 'Online', // Default status, you can add this to schema later
+        id: member._id 
+      } : null;
+    }).filter(Boolean);
+  }, [teamMembers, users]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -71,7 +94,7 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
 
       {/* Members Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-4" ref={menuRef}>
-        {TEAM_MEMBERS.map(member => (
+        {teamMembersWithDetails.map((member: any) => (
           <div key={member.id} className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/50 dark:border-white/5 rounded-[2rem] p-6 shadow-sm hover:shadow-md hover:bg-white/60 dark:hover:bg-white/10 transition-all group relative overflow-visible">
              
              {/* Decorative Top Gradient */}
@@ -124,7 +147,7 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
              <div className="flex flex-col items-center mb-6 relative z-10">
                 <div className="relative mb-3">
                    <img 
-                     src={member.avatar} 
+                     src={member.avatar || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
                      alt={member.name} 
                      className="w-20 h-20 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-lg"
                    />
@@ -134,7 +157,7 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
                    }`}></div>
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">{member.name}</h3>
-                <p className="text-sm font-medium text-purple-600 dark:text-purple-400">{member.role}</p>
+                <p className="text-sm font-medium text-purple-600 dark:text-purple-400 capitalize">{member.role}</p>
              </div>
 
              <div className="flex flex-col gap-3 mb-6 relative z-10">
