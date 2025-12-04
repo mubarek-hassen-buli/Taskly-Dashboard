@@ -15,7 +15,8 @@ import AddFolderModal from './components/AddFolderModal';
 import AddProjectModal from './components/AddProjectModal';
 import SettingsPage from './components/SettingsPage';
 import NotificationsPage from './components/NotificationsPage';
-import { useConvexAuth } from 'convex/react';
+import { useConvexAuth, useQuery } from 'convex/react';
+import { api } from './convex/_generated/api';
 
 type ViewState = 'onboarding' | 'login' | 'signup' | 'dashboard' | 'task-overview' | 'calendar' | 'team-members' | 'settings' | 'notifications';
 
@@ -45,12 +46,22 @@ const App = () => {
     }
   }, [theme]);
 
+  const user = useQuery(api.users.current);
+
   // Redirect based on auth status
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated) {
-        if (['login', 'signup', 'onboarding'].includes(currentView)) {
-          setCurrentView('dashboard');
+        // Wait for user data to be loaded
+        if (user !== undefined) {
+          if (!user?.role) {
+             // If user is logged in but hasn't completed profile (no role), send to signup flow (step 2)
+             if (currentView !== 'signup') {
+               setCurrentView('signup');
+             }
+          } else if (['login', 'signup', 'onboarding'].includes(currentView)) {
+            setCurrentView('dashboard');
+          }
         }
       } else {
         if (!['login', 'signup', 'onboarding'].includes(currentView)) {
@@ -58,7 +69,7 @@ const App = () => {
         }
       }
     }
-  }, [isAuthenticated, isLoading, currentView, setCurrentView]);
+  }, [isAuthenticated, isLoading, currentView, setCurrentView, user]);
 
   if (isLoading) {
     return (

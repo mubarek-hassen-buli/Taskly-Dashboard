@@ -10,8 +10,10 @@
 
 import type * as auth from "../auth.js";
 import type * as calendar from "../calendar.js";
+import type * as debug from "../debug.js";
 import type * as files from "../files.js";
 import type * as folders from "../folders.js";
+import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as projects from "../projects.js";
 import type * as tasks from "../tasks.js";
@@ -27,8 +29,10 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   calendar: typeof calendar;
+  debug: typeof debug;
   files: typeof files;
   folders: typeof folders;
+  http: typeof http;
   messages: typeof messages;
   projects: typeof projects;
   tasks: typeof tasks;

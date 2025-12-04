@@ -9,6 +9,8 @@ export default defineSchema({
   users: defineTable({
     // Authentication & Identity
     email: v.string(), // Unique email for login
+    emailVerificationTime: v.optional(v.number()),
+    image: v.optional(v.string()),
     name: v.string(),
 
     // Profile Information
@@ -18,12 +20,12 @@ export default defineSchema({
     phone: v.optional(v.string()),
 
     // Status & Preferences
-    status: v.union(
+    status: v.optional(v.union(
       v.literal("Online"),
       v.literal("Offline"),
       v.literal("Busy")
-    ),
-    theme: v.union(v.literal("light"), v.literal("dark")),
+    )),
+    theme: v.optional(v.union(v.literal("light"), v.literal("dark"))),
     language: v.optional(v.string()),
 
     // Notification Preferences
@@ -36,11 +38,11 @@ export default defineSchema({
     ),
 
     // Timestamps
-    createdAt: v.number(), // milliseconds since epoch
-    updatedAt: v.number(),
+    createdAt: v.optional(v.number()), // milliseconds since epoch
+    updatedAt: v.optional(v.number()),
     lastActiveAt: v.optional(v.number()),
   })
-    .index("by_email", ["email"])
+    .index("email", ["email"])
     .index("by_status", ["status"])
     .index("by_created_at", ["createdAt"]),
 

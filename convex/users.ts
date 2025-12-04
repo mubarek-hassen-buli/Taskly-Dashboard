@@ -20,7 +20,7 @@ export const store = mutation({
     // Check if we've already stored this user by email
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", identity.email!))
+      .withIndex("email", (q) => q.eq("email", identity.email!))
       .unique();
 
     const now = Date.now();
@@ -51,8 +51,8 @@ export const store = mutation({
     const newUserId = await ctx.db.insert("users", {
       name: name,
       email: identity.email!,
-      avatar: "", // No avatar from password auth by default
-      role: "member",
+      avatar: identity.pictureUrl || "",
+      // Don't set role here - force user through profile setup
       status: "Online",
       theme: "light",
       createdAt: now,
@@ -81,7 +81,7 @@ export const current = query({
     }
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", identity.email!))
+      .withIndex("email", (q) => q.eq("email", identity.email!))
       .unique();
     return user;
   },
@@ -98,7 +98,7 @@ export async function getAuthUserId(ctx: { auth: any; db: any }) {
   }
   const user = await ctx.db
     .query("users")
-    .withIndex("by_email", (q) => q.eq("email", identity.email!))
+    .withIndex("email", (q) => q.eq("email", identity.email!))
     .unique();
   return user?._id ?? null;
 }
