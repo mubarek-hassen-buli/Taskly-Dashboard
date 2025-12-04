@@ -1,6 +1,7 @@
 import React from 'react';
-import { Search, Bell, Sun, Moon, SlidersHorizontal } from 'lucide-react';
+import { Search, Bell, Sun, Moon, SlidersHorizontal, LogOut } from 'lucide-react';
 import { CURRENT_USER } from '../constants';
+import { useAuthActions } from "@convex-dev/auth/react";
 
 interface HeaderProps {
   theme?: string;
@@ -10,6 +11,11 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onNavigate }) => {
   const isDark = theme === 'dark';
+  const { signOut } = useAuthActions();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     // Updated background to semi-transparent white/black with backdrop blur (Glass effect)
@@ -69,6 +75,14 @@ const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onNavigate }) => {
         >
           <Bell size={20} className="group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-black animate-pulse"></span>
+        </button>
+
+        <button 
+          onClick={handleSignOut}
+          className="p-3 bg-white/80 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-full text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 shadow-sm backdrop-blur-sm transition-all group"
+          title="Sign Out"
+        >
+          <LogOut size={20} />
         </button>
         
         <div className="h-8 w-px bg-gray-300/50 dark:bg-white/10 mx-2"></div>

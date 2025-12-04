@@ -72,6 +72,9 @@ export const store = mutation({
 /**
  * Returns the current logged-in user's profile.
  */
+/**
+ * Returns the current logged-in user's profile.
+ */
 export const current = query({
   args: {},
   handler: async (ctx) => {
@@ -79,10 +82,13 @@ export const current = query({
     if (!identity) {
       return null;
     }
-    const user = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", identity.email!))
-      .unique();
+    
+    // The subject is in format: userId|sessionId
+    // Extract just the userId part
+    const userId = identity.subject.split("|")[0];
+    
+    // Query by _id instead of email
+    const user = await ctx.db.get(userId as any);
     return user;
   },
 });
@@ -96,10 +102,13 @@ export async function getAuthUserId(ctx: { auth: any; db: any }) {
   if (!identity) {
     return null;
   }
-  const user = await ctx.db
-    .query("users")
-    .withIndex("email", (q) => q.eq("email", identity.email!))
-    .unique();
+  
+  // The subject is in format: userId|sessionId
+  // Extract just the userId part
+  const userId = identity.subject.split("|")[0];
+  
+  // Verify the user exists
+  const user = await ctx.db.get(userId as any);
   return user?._id ?? null;
 }
 

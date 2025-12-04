@@ -7,17 +7,19 @@ export default defineSchema({
 
   // ==================== USERS ====================
   users: defineTable({
-    // Authentication & Identity
-    email: v.string(), // Unique email for login
+    // Authentication & Identity (Convex Auth required fields)
+    email: v.optional(v.string()), // Must be optional for Convex Auth
     emailVerificationTime: v.optional(v.number()),
     image: v.optional(v.string()),
-    name: v.string(),
+    name: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
 
     // Profile Information
     avatar: v.optional(v.string()), // URL to avatar image
     role: v.optional(v.string()), // User's role (e.g., "Designer", "Developer")
     bio: v.optional(v.string()),
-    phone: v.optional(v.string()),
 
     // Status & Preferences
     status: v.optional(v.union(

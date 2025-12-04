@@ -47,6 +47,7 @@ const App = () => {
   }, [theme]);
 
   const user = useQuery(api.users.current);
+  const [waitingForUser, setWaitingForUser] = useState(false);
 
   // Redirect based on auth status
   useEffect(() => {
@@ -54,7 +55,22 @@ const App = () => {
       if (isAuthenticated) {
         // Wait for user data to be loaded
         if (user !== undefined) {
-          if (!user?.role) {
+          
+          // If user is null, it means the user is being created, wait
+          if (user === null) {
+            if (!waitingForUser) {
+              setWaitingForUser(true);
+              // Retry after a short delay
+              setTimeout(() => {
+                setWaitingForUser(false);
+              }, 1000);
+            }
+            return;
+          }
+          
+          setWaitingForUser(false);
+          
+          if (!user.role) {
              // If user is logged in but hasn't completed profile (no role), send to signup flow (step 2)
              if (currentView !== 'signup') {
                setCurrentView('signup');
@@ -69,7 +85,7 @@ const App = () => {
         }
       }
     }
-  }, [isAuthenticated, isLoading, currentView, setCurrentView, user]);
+  }, [isAuthenticated, isLoading, currentView, setCurrentView, user, waitingForUser]);
 
   if (isLoading) {
     return (
@@ -80,11 +96,14 @@ const App = () => {
   }
 
   const renderContent = () => {
+    // Show signup for profile completion even if authenticated
+    if (currentView === 'signup') {
+      return <Signup onNavigate={(view) => setCurrentView(view as any)} />;
+    }
+    
     if (!isAuthenticated) {
       switch (currentView) {
-        case 'signup':
-          return <Signup onNavigate={(view) => setCurrentView(view as any)} />;
-        case 'onboarding': // Keep onboarding accessible if needed, or route to login
+        case 'onboarding':
            return <Onboarding onNavigate={(view) => setCurrentView(view as any)} />;
         default:
           return <Login onNavigate={(view) => setCurrentView(view as any)} />;
