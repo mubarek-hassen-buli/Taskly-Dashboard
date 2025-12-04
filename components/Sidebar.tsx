@@ -174,6 +174,7 @@ interface FolderListProps {
 
 const FolderList: React.FC<FolderListProps> = ({ currentTeamId, isCollapsed, openProjectModal }) => {
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
+  const { currentProjectId, setCurrentProjectId } = useStore();
   
   // Fetch folders and projects
   const folders = useQuery(api.folders.list, currentTeamId ? { teamId: currentTeamId as any } : "skip");
@@ -244,8 +245,13 @@ const FolderList: React.FC<FolderListProps> = ({ currentTeamId, isCollapsed, ope
                 {folderProjects.map((project) => (
                   <div 
                     key={project._id}
-                    className="pl-6 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white cursor-pointer transition-colors truncate"
-                    style={{ borderLeft: project.color ? `2px solid ${project.color}` : undefined }}
+                    onClick={() => setCurrentProjectId(project._id)}
+                    className={`pl-6 py-2 text-sm cursor-pointer transition-all truncate rounded-lg ${
+                      currentProjectId === project._id
+                        ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-semibold ml-1'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5'
+                    }`}
+                    style={{ borderLeft: project.color ? `3px solid ${project.color}` : undefined }}
                   >
                     {project.name}
                   </div>

@@ -20,18 +20,17 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
-  const { currentTeamId, setCurrentTeamId, openTaskModal } = useStore();
+  const { currentTeamId, setCurrentTeamId, currentProjectId, openTaskModal } = useStore();
   const [activeTab, setActiveTab] = useState<TabStatus>(TabStatus.ToDo);
 
   // Fetch user's teams
   const teams = useQuery(api.teams.getByUser);
   
-  // Fetch projects and tasks for the current team
+  // Fetch projects for the current team
   const projects = useQuery(api.projects.list, currentTeamId ? { teamId: currentTeamId as any } : "skip");
   
-  // Get the first project's tasks (for now, we'll improve this later)
-  const firstProjectId = projects?.[0]?._id;
-  const tasks = useQuery(api.tasks.list, firstProjectId ? { projectId: firstProjectId } : "skip");
+  // Fetch tasks for the selected project
+  const tasks = useQuery(api.tasks.list, currentProjectId ? { projectId: currentProjectId as any } : "skip");
 
   // Set current team on mount
   useEffect(() => {
@@ -40,9 +39,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
     }
   }, [teams, currentTeamId, setCurrentTeamId]);
 
-  // Get current team name
+  // Get current team and project names
   const currentTeam = teams?.find(t => t._id === currentTeamId);
   const teamName = currentTeam?.name || 'Taskly - Saas Dashboard';
+  const currentProject = projects?.find(p => p._id === currentProjectId);
 
   // Filter tasks based on active tab
   const filteredTasks = useMemo(() => {
@@ -71,8 +71,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
           </div>
           
           <div className="flex items-end justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-1">
                <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{teamName}</h1>
+               {currentProject && (
+                 <div className="flex items-center gap-2 text-sm">
+                   <span className="text-gray-500 dark:text-gray-400">Project:</span>
+                   <span 
+                     className="font-semibold text-purple-600 dark:text-purple-400 px-2 py-0.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg"
+                     style={{ borderLeft: currentProject.color ? `3px solid ${currentProject.color}` : undefined }}
+                   >
+                     {currentProject.name}
+                   </span>
+                 </div>
+               )}
+               {!currentProject && (
+                 <p className="text-sm text-gray-400 dark:text-gray-500 italic">Select a project from the sidebar to view tasks</p>
+               )}
             </div>
             
             <div className="flex items-center gap-4">
