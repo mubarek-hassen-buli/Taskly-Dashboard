@@ -5,6 +5,30 @@ import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
 
+// Custom Tooltip Component
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    return (
+      <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div 
+            className="w-3 h-3 rounded-full shadow-sm" 
+            style={{ backgroundColor: data.payload.color }}
+          ></div>
+          <div>
+            <p className="text-xs font-bold text-gray-900 dark:text-white">{data.name}</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">
+              {data.value} {data.value === 1 ? 'task' : 'tasks'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 const TaskGraphWidget = () => {
   const { currentProjectId } = useStore();
   
@@ -138,9 +162,6 @@ const TaskGraphWidget = () => {
       <div className="flex-1 flex flex-col md:flex-row items-center gap-8">
         {/* Chart using Recharts */}
         <div className="relative w-48 h-48 flex-shrink-0">
-          {/* Outer Glow */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-500/20 to-blue-500/20 blur-xl"></div>
-          
           {/* Recharts Pie Chart */}
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -157,14 +178,7 @@ const TaskGraphWidget = () => {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)', 
-                  border: 'none', 
-                  borderRadius: '8px',
-                  color: 'white'
-                }}
-              />
+              <Tooltip content={<CustomTooltip />} />
             </PieChart>
           </ResponsiveContainer>
 
