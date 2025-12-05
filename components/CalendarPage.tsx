@@ -1,43 +1,91 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Filter, Calendar as CalendarIcon } from 'lucide-react';
-import { TASKS } from '../constants';
+import { Calendar, momentLocalizer, View } from 'react-big-calendar';
+import moment from 'moment';
+import { useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { useStore } from '../store/useStore';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+const localizer = momentLocalizer(moment);
 
 interface CalendarPageProps {
   onAddTask?: () => void;
 }
 
 const CalendarPage: React.FC<CalendarPageProps> = ({ onAddTask }) => {
-  // Mock Date: September 2025
-  const currentMonth = 'September 2025';
-  const daysInMonth = 30;
-  const startDayOffset = 1; // September 1st 2025 is a Monday (0=Sun, 1=Mon)
+  const { currentProjectId } = useStore();
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState<View>('month');
+  
+  // Fetch tasks for the current project
+  const tasks = useQuery(
+    api.tasks.list,
+    currentProjectId ? { projectId: currentProjectId as any } : "skip"
+  );
 
-  // Generate calendar grid
-  const calendarDays = [];
-  // Empty slots for previous month
-  for (let i = 0; i < startDayOffset; i++) {
-    calendarDays.push({ day: null });
-  }
-  // Days of current month
-  for (let i = 1; i <= daysInMonth; i++) {
-    calendarDays.push({ day: i });
-  }
-  // Remaining slots to fill 6 weeks (42 slots)
-  const remainingSlots = 42 - calendarDays.length;
-  for (let i = 0; i < remainingSlots; i++) {
-    calendarDays.push({ day: null });
-  }
+  // Transform tasks into calendar events
+  const events = useMemo(() => {
+    if (!tasks) return [];
+    
+    return tasks
+      .filter(task => task.dueDate) // Only tasks with due dates
+      .map(task => {
+        const start = new Date(task.dueDate!);
+        const end = new Date(task.dueDate!);
+        
+        // Set end time to be 1 hour after start for better visualization
+        end.setHours(end.getHours() + 1);
+        
+        return {
+          id: task._id,
+          title: task.title,
+          start,
+          end,
+          resource: task, // Store full task data
+        };
+      });
+  }, [tasks]);
 
-  const getTasksForDay = (day: number) => {
-    // Matches tasks with dueDate string "Sep {day}" or "Sep 0{day}"
-    const dayStr = day < 10 ? `0${day}` : `${day}`;
-    return TASKS.filter(task => {
-        // Simple string matching for demo purposes based on constant data format "Sep 14"
-        return task.dueDate === `Sep ${day}` || task.dueDate === `Sep ${dayStr}`;
-    });
+  // Custom event style getter
+  const eventStyleGetter = (event: any) => {
+    const task = event.resource;
+    let backgroundColor = '#3b82f6'; // Default blue
+    
+    if (task.priority === 'Urgent') {
+      backgroundColor = '#f97316'; // Orange
+    } else if (task.priority === 'High') {
+      backgroundColor = '#ec4899'; // Pink
+    } else if (task.status === 'Completed') {
+      backgroundColor = '#22c55e'; // Green
+    } else if (task.status === 'Under Review') {
+      backgroundColor = '#a855f7'; // Purple
+    }
+    
+    return {
+      style: {
+        backgroundColor,
+        borderRadius: '8px',
+        opacity: 0.9,
+        color: 'white',
+        border: 'none',
+        display: 'block',
+        fontSize: '0.75rem',
+        fontWeight: '600',
+        padding: '2px 6px',
+      },
+    };
   };
 
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const handleNavigate = (newDate: Date) => {
+    setCurrentDate(newDate);
+  };
+
+  const handleViewChange = (newView: View) => {
+    setView(newView);
+  };
+
+  const currentMonth = moment(currentDate).format('MMMM YYYY');
 
   return (
     <main className="flex-1 p-8 h-full flex flex-col min-h-0 custom-scrollbar overflow-y-auto">
@@ -53,24 +101,44 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ onAddTask }) => {
           <div className="flex items-center gap-4">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Schedule</h1>
             <div className="flex items-center gap-2 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-white/60 dark:border-white/10 rounded-xl px-3 py-1.5 shadow-sm">
-               <button className="p-1 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-colors text-gray-500">
+               <button 
+                 onClick={() => handleNavigate(moment(currentDate).subtract(1, 'month').toDate())}
+                 className="p-1 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-colors text-gray-500"
+               >
                   <ChevronLeft size={18} />
                </button>
                <span className="text-sm font-bold text-gray-800 dark:text-gray-200 min-w-[120px] text-center">{currentMonth}</span>
-               <button className="p-1 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-colors text-gray-500">
+               <button 
+                 onClick={() => handleNavigate(moment(currentDate).add(1, 'month').toDate())}
+                 className="p-1 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-colors text-gray-500"
+               >
                   <ChevronRight size={18} />
                </button>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
-             <button className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10 transition-colors shadow-sm">
+             <button 
+               onClick={() => setView('month')}
+               className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-sm font-bold transition-colors shadow-sm ${
+                 view === 'month' 
+                   ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white' 
+                   : 'bg-white/50 dark:bg-white/5 border-white/60 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10'
+               }`}
+             >
                 <CalendarIcon size={16} />
                 Month View
              </button>
-             <button className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10 transition-colors shadow-sm">
+             <button 
+               onClick={() => setView('week')}
+               className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-sm font-bold transition-colors shadow-sm ${
+                 view === 'week' 
+                   ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white' 
+                   : 'bg-white/50 dark:bg-white/5 border-white/60 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10'
+               }`}
+             >
                 <Filter size={16} />
-                Filter
+                Week View
              </button>
              <button 
                 onClick={onAddTask}
@@ -83,75 +151,133 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ onAddTask }) => {
         </div>
       </div>
 
-      {/* Calendar Grid Container */}
+      {/* Calendar Container */}
       <div className="flex-1 bg-white/30 dark:bg-white/5 backdrop-blur-md border border-white/40 dark:border-white/10 rounded-[2rem] p-6 shadow-sm flex flex-col min-h-0 overflow-hidden">
-        
-        {/* Weekday Headers */}
-        <div className="grid grid-cols-7 mb-4">
-           {weekDays.map(day => (
-              <div key={day} className="text-center text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider opacity-60">
-                 {day}
+        {!currentProjectId ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="p-4 bg-gray-100 dark:bg-white/10 rounded-2xl inline-block mb-4">
+                <CalendarIcon size={32} className="text-gray-400" />
               </div>
-           ))}
-        </div>
-
-        {/* Days Grid */}
-        <div className="grid grid-cols-7 grid-rows-6 gap-2 flex-1 min-h-0">
-           {calendarDays.map((cell, index) => {
-              if (cell.day === null) {
-                 return <div key={index} className="bg-white/10 dark:bg-white/5 rounded-xl border border-white/10 dark:border-white/5"></div>;
-              }
-
-              const tasks = getTasksForDay(cell.day);
-              const isToday = cell.day === 12; // Mocking today as Sep 12 based on other widgets
-
-              return (
-                 <div 
-                   key={index} 
-                   className={`
-                      relative p-3 rounded-2xl border transition-all duration-200 flex flex-col gap-1 overflow-hidden group
-                      ${isToday 
-                        ? 'bg-white/80 dark:bg-gray-700 border-purple-200 dark:border-purple-800 ring-2 ring-purple-100 dark:ring-purple-900/30 shadow-lg' 
-                        : 'bg-white/40 dark:bg-white/5 border-white/50 dark:border-white/5 hover:bg-white/60 dark:hover:bg-white/10 hover:shadow-md hover:border-white/80 dark:hover:border-white/20'
-                      }
-                   `}
-                 >
-                    <div className="flex justify-between items-start">
-                       <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900' : 'text-gray-700 dark:text-gray-300'}`}>
-                          {cell.day}
-                       </span>
-                       {tasks.length > 0 && (
-                          <span className="text-[10px] font-bold text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
-                            {tasks.length} tasks
-                          </span>
-                       )}
-                    </div>
-
-                    <div className="flex-1 flex flex-col gap-1 mt-1 overflow-y-auto custom-scrollbar">
-                       {tasks.map(task => {
-                          const isUrgent = task.priority === 'Urgent';
-                          const isHigh = task.priority === 'High';
-                          
-                          let bgClass = 'bg-blue-100/80 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/50';
-                          if (isUrgent) bgClass = 'bg-orange-100/80 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800/50';
-                          if (isHigh) bgClass = 'bg-pink-100/80 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-800/50';
-
-                          return (
-                             <div 
-                               key={task.id}
-                               className={`text-[10px] font-bold px-2 py-1.5 rounded-lg border truncate cursor-pointer hover:opacity-80 transition-opacity ${bgClass}`}
-                               title={task.title}
-                             >
-                                {task.title}
-                             </div>
-                          );
-                       })}
-                    </div>
-                 </div>
-              );
-           })}
-        </div>
+              <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-2">No Project Selected</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Select a project from the sidebar to view tasks</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 min-h-0 calendar-container">
+            <Calendar
+              localizer={localizer}
+              events={events}
+              startAccessor="start"
+              endAccessor="end"
+              style={{ height: '100%' }}
+              view={view}
+              onView={handleViewChange}
+              date={currentDate}
+              onNavigate={handleNavigate}
+              eventPropGetter={eventStyleGetter}
+              toolbar={false}
+              popup
+              views={['month', 'week', 'day']}
+            />
+          </div>
+        )}
       </div>
+
+      <style jsx global>{`
+        .calendar-container .rbc-calendar {
+          font-family: inherit;
+        }
+        
+        .calendar-container .rbc-header {
+          padding: 12px 8px;
+          font-weight: 700;
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          color: var(--tw-text-opacity);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .calendar-container .rbc-month-view {
+          border: none;
+          border-radius: 1rem;
+          overflow: hidden;
+        }
+        
+        .calendar-container .rbc-month-row {
+          border: none;
+          min-height: 100px;
+        }
+        
+        .calendar-container .rbc-day-bg {
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .calendar-container .rbc-today {
+          background-color: rgba(168, 85, 247, 0.1);
+        }
+        
+        .calendar-container .rbc-off-range-bg {
+          background-color: rgba(255, 255, 255, 0.02);
+        }
+        
+        .calendar-container .rbc-date-cell {
+          padding: 8px;
+          text-align: right;
+        }
+        
+        .calendar-container .rbc-date-cell > a {
+          font-weight: 700;
+          font-size: 0.875rem;
+          color: inherit;
+        }
+        
+        .calendar-container .rbc-event {
+          padding: 2px 6px;
+          border-radius: 8px;
+          font-size: 0.75rem;
+          font-weight: 600;
+        }
+        
+        .calendar-container .rbc-event-label {
+          font-size: 0.7rem;
+        }
+        
+        .calendar-container .rbc-show-more {
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: #a855f7;
+          background-color: transparent;
+          padding: 2px 4px;
+          margin: 2px;
+        }
+        
+        .calendar-container .rbc-time-view {
+          border: none;
+        }
+        
+        .calendar-container .rbc-time-header {
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .calendar-container .rbc-time-content {
+          border-top: none;
+        }
+        
+        .calendar-container .rbc-timeslot-group {
+          border-left: 1px solid rgba(255, 255, 255, 0.05);
+          min-height: 60px;
+        }
+        
+        .calendar-container .rbc-time-slot {
+          border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .calendar-container .rbc-current-time-indicator {
+          background-color: #a855f7;
+          height: 2px;
+        }
+      `}</style>
     </main>
   );
 };
