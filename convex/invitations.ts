@@ -62,7 +62,7 @@ export const sendInvitation = action({
       
       const resend = new Resend(process.env.RESEND_API_KEY);
 
-      const emailHtml = render(TeamInviteEmail({
+      const emailHtml = await render(TeamInviteEmail({
         inviterName: inviter.name,
         inviterEmail: inviter.email,
         teamName: team.name,
