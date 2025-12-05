@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "./users";
 
 /**
@@ -60,5 +60,52 @@ export const saveAttachment = mutation({
     await ctx.db.patch(args.taskId, {
       attachmentsCount: task.attachmentsCount + 1,
     });
+  },
+});
+
+/**
+ * List attachments for a task with download URLs.
+ */
+export const listByTask = query({
+  args: {
+    taskId: v.id("tasks"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) return [];
+
+    // Verify access
+    const project = await ctx.db.get(task.projectId);
+    if (!project) return [];
+
+    const membership = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_team_and_user", (q) =>
+        q.eq("teamId", project.teamId).eq("userId", userId)
+      )
+      .unique();
+
+    if (!membership) return [];
+
+    const attachments = await ctx.db
+      .query("attachments")
+      .withIndex("by_task", (q) => q.eq("taskId", args.taskId))
+      .collect();
+
+    // Get download URLs for each attachment
+    const attachmentsWithUrls = await Promise.all(
+      attachments.map(async (attachment) => {
+        const url = await ctx.storage.getUrl(attachment.storageId);
+        return {
+          ...attachment,
+          url,
+        };
+      })
+    );
+
+    return attachmentsWithUrls;
   },
 });

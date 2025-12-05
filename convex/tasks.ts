@@ -217,3 +217,103 @@ export const updateStatus = mutation({
     });
   },
 });
+
+/**
+ * Update a task.
+ */
+export const update = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    status: v.optional(
+      v.union(
+        v.literal("To Do"),
+        v.literal("In Progress"),
+        v.literal("Under Review"),
+        v.literal("Completed")
+      )
+    ),
+    priority: v.optional(
+      v.union(
+        v.literal("Low Priority"),
+        v.literal("Medium"),
+        v.literal("High"),
+        v.literal("Urgent")
+      )
+    ),
+    dueDate: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    // Verify access
+    const project = await ctx.db.get(task.projectId);
+    if (!project) throw new Error("Project not found");
+
+    const membership = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_team_and_user", (q) =>
+        q.eq("teamId", project.teamId).eq("userId", userId)
+      )
+      .unique();
+
+    if (!membership) throw new Error("Unauthorized");
+
+    // Update task
+    await ctx.db.patch(args.taskId, {
+      ...(args.title && { title: args.title }),
+      ...(args.description !== undefined && { description: args.description }),
+      ...(args.status && { status: args.status }),
+      ...(args.priority && { priority: args.priority }),
+      ...(args.dueDate !== undefined && { dueDate: args.dueDate }),
+      updatedAt: Date.now(),
+    });
+
+    return args.taskId;
+  },
+});
+
+/**
+ * Delete a task.
+ */
+export const remove = mutation({
+  args: {
+    taskId: v.id("tasks"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    // Verify access
+    const project = await ctx.db.get(task.projectId);
+    if (!project) throw new Error("Project not found");
+
+    const membership = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_team_and_user", (q) =>
+        q.eq("teamId", project.teamId).eq("userId", userId)
+      )
+      .unique();
+
+    if (!membership) throw new Error("Unauthorized");
+
+    // Delete task assignees
+    const assignees = await ctx.db
+      .query("taskAssignees")
+      .withIndex("by_task", (q) => q.eq("taskId", args.taskId))
+      .collect();
+
+    await Promise.all(assignees.map((a) => ctx.db.delete(a._id)));
+
+    // Delete task
+    await ctx.db.delete(args.taskId);
+  },
+});
