@@ -56,11 +56,22 @@ export const sendInvitation = action({
 
     // Send email using Resend
     try {
+      const resendApiKey = process.env.RESEND_API_KEY;
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'Taskly <onboarding@resend.dev>';
+
+      if (!resendApiKey) {
+        throw new Error('RESEND_API_KEY environment variable is not set. Please configure it in Convex dashboard.');
+      }
+
+      console.log('Sending invitation email to:', args.email);
+      console.log('From:', fromEmail);
+      console.log('Team:', team.name);
+
       const { Resend } = await import('resend');
       const { render } = await import('@react-email/render');
       const { TeamInviteEmail } = await import('../emails/team-invite');
       
-      const resend = new Resend(process.env.RESEND_API_KEY);
+      const resend = new Resend(resendApiKey);
 
       const emailHtml = await render(TeamInviteEmail({
         inviterName: inviter.name,
@@ -70,16 +81,23 @@ export const sendInvitation = action({
         role: args.role.charAt(0).toUpperCase() + args.role.slice(1),
       }));
 
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'Taskly <onboarding@resend.dev>',
+      const result = await resend.emails.send({
+        from: fromEmail,
         to: args.email,
         subject: `You're invited to join ${team.name} on Taskly`,
         html: emailHtml,
       });
 
-      return { success: true, invitationId };
+      console.log('Email sent successfully:', result);
+
+      return { 
+        success: true, 
+        invitationId, 
+        emailId: result.data?.id || 'unknown' 
+      };
     } catch (error: any) {
       console.error('Failed to send invitation email:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       throw new Error(`Failed to send invitation: ${error.message}`);
     }
   },
