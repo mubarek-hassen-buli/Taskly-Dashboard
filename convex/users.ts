@@ -149,3 +149,40 @@ export const list = query({
     return users;
   },
 });
+
+/**
+ * Get a user by ID
+ */
+export const get = query({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.userId);
+  },
+});
+
+/**
+ * Get a user by email
+ */
+export const getByEmail = query({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", args.email))
+      .unique();
+  },
+});
+
+/**
+ * Get auth user ID as a query (for use in actions)
+ */
+export const getAuthUserId = query({
+  args: {},
+  handler: async (ctx) => {
+    return await getAuthUserId(ctx);
+  },
+});

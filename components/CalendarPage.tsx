@@ -489,7 +489,9 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ onAddTask }) => {
         }
         
         .calendar-container .rbc-event {
-          padding: 2px 6px;
+          padding: 4px 8px;
+          margin: 2px 4px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
           border-radius: 8px;
           font-size: 0.75rem;
           font-weight: 600;
@@ -510,7 +512,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ onAddTask }) => {
         }
         
         .calendar-container .rbc-show-more:hover {
-          text-decoration: underline;
+          background-color: rgba(168, 85, 247, 0.1);
         }
         
         .calendar-container .rbc-time-view {

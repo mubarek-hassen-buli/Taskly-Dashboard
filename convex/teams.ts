@@ -177,3 +177,33 @@ export const addMember = mutation({
     });
   },
 });
+
+/**
+ * Get a single team by ID
+ */
+export const get = query({
+  args: {
+    teamId: v.id("teams"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.teamId);
+  },
+});
+
+/**
+ * Get user's membership in a team
+ */
+export const getMembership = query({
+  args: {
+    teamId: v.id("teams"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("teamMembers")
+      .withIndex("by_team_and_user", (q) =>
+        q.eq("teamId", args.teamId).eq("userId", args.userId)
+      )
+      .unique();
+  },
+});

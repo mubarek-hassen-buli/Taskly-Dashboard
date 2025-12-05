@@ -15,6 +15,7 @@ import type * as debugTeams from "../debugTeams.js";
 import type * as files from "../files.js";
 import type * as folders from "../folders.js";
 import type * as http from "../http.js";
+import type * as invitations from "../invitations.js";
 import type * as messages from "../messages.js";
 import type * as projects from "../projects.js";
 import type * as tasks from "../tasks.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   folders: typeof folders;
   http: typeof http;
+  invitations: typeof invitations;
   messages: typeof messages;
   projects: typeof projects;
   tasks: typeof tasks;

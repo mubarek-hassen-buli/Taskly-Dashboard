@@ -91,6 +91,35 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_team_and_user", ["teamId", "userId"]),
 
+  // ==================== INVITATIONS ====================
+  invitations: defineTable({
+    email: v.string(),
+    teamId: v.id("teams"),
+    role: v.union(
+      v.literal("admin"),
+      v.literal("member"),
+      v.literal("viewer")
+    ),
+    invitedBy: v.id("users"),
+    fullName: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("expired"),
+      v.literal("cancelled")
+    ),
+    
+    // Timestamps
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    acceptedAt: v.optional(v.number()),
+    acceptedBy: v.optional(v.id("users")),
+  })
+    .index("by_team", ["teamId"])
+    .index("by_email", ["email"])
+    .index("by_email_and_team", ["email", "teamId"])
+    .index("by_status", ["status"]),
+
   // ==================== FOLDERS ====================
   folders: defineTable({
     name: v.string(),
