@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { X, Calendar, AlignLeft, Flag, User } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { X, Calendar, AlignLeft, Flag, UploadCloud, FileText, Image, Trash2 } from 'lucide-react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
@@ -13,10 +13,20 @@ interface EditTaskModalProps {
 const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) => {
   const { currentTeamId } = useStore();
   const updateTask = useMutation(api.tasks.update);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+  const saveAttachment = useMutation(api.files.saveAttachment);
+  const removeAttachment = useMutation(api.files.removeAttachment);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch team members for assignment
   const teamMembers = useQuery(api.teams.listMembers, currentTeamId ? { teamId: currentTeamId as any } : "skip");
   const users = useQuery(api.users.list);
+  
+  // Fetch attachments
+  const attachments = useQuery(
+    api.files.listByTask,
+    task?._id ? { taskId: task._id } : "skip"
+  );
 
   // Map team members to user details
   const teamMembersWithDetails = useMemo(() => {
@@ -33,6 +43,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
     task?.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''
   );
   const [priority, setPriority] = useState(task?.priority || 'Medium');
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,6 +56,72 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
       setPriority(task.priority || 'Medium');
     }
   }, [task]);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    setError('');
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          setError(`File ${file.name} is too large. Max size is 10MB.`);
+          continue;
+        }
+
+        // Get upload URL from Convex
+        const uploadUrl = await generateUploadUrl();
+
+        // Upload file to Convex storage
+        const result = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        });
+
+        const { storageId } = await result.json();
+
+        // Save attachment metadata
+        await saveAttachment({
+          taskId: task._id,
+          storageId,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        });
+      }
+    } catch (err: any) {
+      console.error('Error uploading files:', err);
+      setError(err.message || 'Failed to upload files');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveAttachment = async (attachmentId: string) => {
+    if (!confirm('Are you sure you want to remove this attachment?')) return;
+
+    try {
+      await removeAttachment({ attachmentId: attachmentId as any });
+    } catch (err: any) {
+      console.error('Error removing attachment:', err);
+      setError(err.message || 'Failed to remove attachment');
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
 
   const handleUpdateTask = async () => {
     if (!title.trim()) {
@@ -170,6 +247,74 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
               />
            </div>
 
+           {/* File Upload Area */}
+           <div className="space-y-3">
+              <label className="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                 <UploadCloud size={14} className="text-cyan-500" /> Attachments
+              </label>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".svg,.png,.jpg,.jpeg,.pdf"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full h-24 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 bg-gray-50/50 dark:bg-white/5 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 hover:border-purple-300 dark:hover:border-purple-500/50 transition-all cursor-pointer group"
+              >
+                  <div className="p-2 bg-white dark:bg-white/10 rounded-xl shadow-sm group-hover:scale-110 transition-transform text-gray-400 group-hover:text-purple-500">
+                     {uploading ? (
+                       <div className="animate-spin">
+                         <UploadCloud size={18} />
+                       </div>
+                     ) : (
+                       <UploadCloud size={18} />
+                     )}
+                  </div>
+                  <p className="text-xs font-bold text-gray-600 dark:text-gray-300 group-hover:text-purple-600 dark:group-hover:text-purple-400">
+                    {uploading ? 'Uploading...' : 'Click to upload files'}
+                  </p>
+              </div>
+
+              {/* Attached Files List */}
+              {attachments && attachments.length > 0 && (
+                <div className="space-y-2 mt-3">
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Current Attachments</p>
+                  {attachments.map((file: any) => (
+                    <div 
+                      key={file._id}
+                      className="flex items-center gap-3 p-3 bg-white/50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 group"
+                    >
+                      <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                        {file.type?.includes('image') ? (
+                          <Image size={16} className="text-purple-600 dark:text-purple-400" />
+                        ) : (
+                          <FileText size={16} className="text-purple-600 dark:text-purple-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{file.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveAttachment(file._id);
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+           </div>
+
            {error && (
              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium">
                {error}
@@ -182,17 +327,17 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
         <div className="px-8 py-5 bg-white/50 dark:bg-[#121212]/50 border-t border-gray-100 dark:border-white/5 flex items-center justify-end gap-3 sticky bottom-0 z-20 backdrop-blur-xl">
            <button 
              onClick={onClose}
-             disabled={loading}
+             disabled={loading || uploading}
              className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
            >
              Cancel
            </button>
            <button 
              onClick={handleUpdateTask}
-             disabled={loading || !title.trim()}
+             disabled={loading || uploading || !title.trim()}
              className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-200 hover:shadow-lg hover:shadow-gray-900/20 dark:hover:shadow-white/10 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
            >
-             {loading ? 'Updating...' : 'Update Task'}
+             {loading ? 'Updating...' : uploading ? 'Uploading...' : 'Update Task'}
            </button>
         </div>
 

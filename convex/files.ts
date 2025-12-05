@@ -109,3 +109,46 @@ export const listByTask = query({
     return attachmentsWithUrls;
   },
 });
+
+/**
+ * Remove an attachment.
+ */
+export const removeAttachment = mutation({
+  args: {
+    attachmentId: v.id("attachments"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    const attachment = await ctx.db.get(args.attachmentId);
+    if (!attachment) throw new Error("Attachment not found");
+
+    const task = await ctx.db.get(attachment.taskId);
+    if (!task) throw new Error("Task not found");
+
+    // Verify access
+    const project = await ctx.db.get(task.projectId);
+    if (!project) throw new Error("Project not found");
+
+    const membership = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_team_and_user", (q) =>
+        q.eq("teamId", project.teamId).eq("userId", userId)
+      )
+      .unique();
+
+    if (!membership) throw new Error("Unauthorized");
+
+    // Delete from storage
+    await ctx.storage.delete(attachment.storageId);
+
+    // Delete attachment record
+    await ctx.db.delete(args.attachmentId);
+
+    // Update task attachment count
+    await ctx.db.patch(attachment.taskId, {
+      attachmentsCount: Math.max(0, task.attachmentsCount - 1),
+    });
+  },
+});
