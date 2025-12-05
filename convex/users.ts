@@ -180,7 +180,7 @@ export const getByEmail = query({
 /**
  * Get auth user ID as a query (for use in actions)
  */
-export const getAuthUserId = query({
+export const getAuthUserIdQuery = query({
   args: {},
   handler: async (ctx) => {
     return await getAuthUserId(ctx);

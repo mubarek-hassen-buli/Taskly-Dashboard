@@ -18,7 +18,7 @@ export const sendInvitation = action({
     fullName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await ctx.runQuery(api.users.getAuthUserId);
+    const userId = await ctx.runQuery(api.users.getAuthUserIdQuery);
     if (!userId) throw new Error("Unauthorized");
 
     // Get team details
