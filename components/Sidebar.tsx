@@ -27,6 +27,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onAddProject, onCreateProject }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isProjectsOpen, setIsProjectsOpen] = useState(true);
+  const [isTeamMenuOpen, setIsTeamMenuOpen] = useState(false);
   const { currentTeamId, setCurrentTeamId, openFolderModal, openProjectModal } = useStore();
 
   // Fetch user's teams
@@ -70,8 +71,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onAddProject
       </button>
 
       {/* Team Selector */}
-      <div className={`mb-8 transition-all duration-500 ${isCollapsed ? 'mt-0' : 'mt-8'}`}>
-        <div className={`
+      <div className={`mb-8 transition-all duration-500 relative ${isCollapsed ? 'mt-0' : 'mt-8'}`}>
+        <div 
+          onClick={() => !isCollapsed && setIsTeamMenuOpen(!isTeamMenuOpen)}
+          className={`
           bg-white/80 dark:bg-white/5 backdrop-blur-md rounded-2xl flex items-center cursor-pointer hover:bg-white dark:hover:bg-white/10 transition-all shadow-sm border border-white/50 dark:border-white/5 overflow-hidden
           ${isCollapsed ? 'p-2 justify-center aspect-square' : 'p-4 justify-between'}
         `}>
@@ -84,13 +87,53 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onAddProject
               <h3 className="text-sm font-bold text-gray-900 dark:text-white whitespace-nowrap">{teamName}</h3>
               <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                 <Lock size={10} />
-                <span>Private</span>
+                <span>{currentTeam?.role === 'owner' ? 'Personal' : 'Shared Support'}</span>
               </div>
             </div>
           </div>
           
           {!isCollapsed && <ChevronsUpDown size={16} className="text-gray-400 shrink-0" />}
         </div>
+
+        {/* Team Dropdown Menu */}
+        {!isCollapsed && isTeamMenuOpen && (
+          <div className="absolute top-full left-0 right-0 mt-2 p-2 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 z-50 animate-fade-in-down">
+            <div className="text-xs font-bold text-gray-400 px-3 py-2 uppercase tracking-wider">Switch Team</div>
+            <div className="flex flex-col gap-1 max-h-60 overflow-y-auto custom-scrollbar">
+              {teams?.map(team => (
+                <button
+                  key={team._id}
+                  onClick={() => {
+                    setCurrentTeamId(team._id);
+                    setIsTeamMenuOpen(false);
+                  }}
+                  className={`
+                    w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors
+                    ${currentTeamId === team._id 
+                      ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300' 
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`
+                      w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold
+                      ${currentTeamId === team._id ? 'bg-purple-200 dark:bg-purple-800' : 'bg-gray-100 dark:bg-gray-800'}
+                    `}>
+                      {team.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold truncate max-w-[120px]">{team.name}</div>
+                      <div className="text-[10px] opacity-70 capitalize">{team.role}</div>
+                    </div>
+                  </div>
+                  {currentTeamId === team._id && (
+                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Menu */}

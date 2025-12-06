@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Filter, Mail, MoreHorizontal, Plus, Edit, Trash2, CheckCircle, Shield } from 'lucide-react';
-import { useQuery } from 'convex/react';
+import { Search, Filter, Mail, MoreHorizontal, Plus, Trash2, Shield, Check } from 'lucide-react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
 
@@ -11,15 +11,17 @@ interface TeamMembersProps {
 const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
   const { currentTeamId } = useStore();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Fetch team members for the current team
+  
+  // Queries & Mutations
   const teamMembers = useQuery(api.teams.listMembers, currentTeamId ? { teamId: currentTeamId as any } : "skip");
-  
-  // Fetch user details for team members
   const users = useQuery(api.users.list);
+  const currentUser = useQuery(api.users.getAuthUserIdQuery);
+  const updateRole = useMutation(api.teams.updateMemberRole);
+  const removeMember = useMutation(api.teams.removeMember);
   
-  // Map team members to user details
+  // Computed Data
   const teamMembersWithDetails = useMemo(() => {
     if (!teamMembers || !users) return [];
     return teamMembers.map(member => {
@@ -27,16 +29,31 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
       return user ? { 
         ...user, 
         role: member.role,
-        status: 'Online', // Default status, you can add this to schema later
-        id: member._id 
+        status: 'Online', 
+        id: member._id,
+        userId: member.userId // needed for mutations
       } : null;
     }).filter(Boolean);
   }, [teamMembers, users]);
+
+  // Determine Current User's Role
+  const myRole = useMemo(() => {
+    if (!teamMembers || !currentUser) return null;
+    const myMembership = teamMembers.find(m => m.userId === currentUser);
+    return myMembership?.role || null;
+  }, [teamMembers, currentUser]);
+
+  const canManage = (targetRole: string) => {
+    if (myRole === 'owner') return true;
+    if (myRole === 'admin' && targetRole !== 'owner' && targetRole !== 'admin') return true;
+    return false;
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setOpenMenuId(null);
+        setEditingRoleId(null); // Close role editor too
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -45,7 +62,34 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
 
   const toggleMenu = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setOpenMenuId(openMenuId === id ? null : id);
+    if (openMenuId === id) {
+      setOpenMenuId(null);
+      setEditingRoleId(null);
+    } else {
+      setOpenMenuId(id);
+      setEditingRoleId(null);
+    }
+  };
+
+  const handleUpdateRole = async (memberId: string, userId: string, newRole: "admin" | "member" | "viewer") => {
+    try {
+      await updateRole({ teamId: currentTeamId as any, userId: userId as any, role: newRole });
+      setEditingRoleId(null);
+      setOpenMenuId(null);
+    } catch (err: any) {
+      alert(err.message || "Failed to update role");
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string, userId: string, memberName: string) => {
+    if (window.confirm(`Are you sure you want to remove ${memberName} from the team?`)) {
+      try {
+        await removeMember({ teamId: currentTeamId as any, userId: userId as any });
+        setOpenMenuId(null);
+      } catch (err: any) {
+        alert(err.message || "Failed to remove member");
+      }
+    }
   };
 
   return (
@@ -64,13 +108,15 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage permissions and view team availability.</p>
           </div>
           
-          <button 
-            onClick={onAddMember}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-lg shadow-gray-200 dark:shadow-none"
-          >
-             <Plus size={14} />
-             Add Member
-          </button>
+          {(myRole === 'owner' || myRole === 'admin') && (
+            <button 
+              onClick={onAddMember}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-lg shadow-gray-200 dark:shadow-none"
+            >
+               <Plus size={14} />
+               Add Member
+            </button>
+          )}
         </div>
       </div>
 
@@ -110,41 +156,69 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
                     {member.status}
                 </div>
                 
-                <div className="relative">
-                  <button 
-                    onClick={(e) => toggleMenu(e, member.id)}
-                    className={`text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg transition-colors ${openMenuId === member.id ? 'bg-white/50 dark:bg-white/10 text-gray-900 dark:text-white' : ''}`}
-                  >
-                      <MoreHorizontal size={20} />
-                  </button>
+                {canManage(member.role) && (
+                  <div className="relative">
+                    <button 
+                      onClick={(e) => toggleMenu(e, member.id)}
+                      className={`text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg transition-colors ${openMenuId === member.id ? 'bg-white/50 dark:bg-white/10 text-gray-900 dark:text-white' : ''}`}
+                    >
+                        <MoreHorizontal size={20} />
+                    </button>
 
-                  {/* Dropdown Menu */}
-                  {openMenuId === member.id && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white/90 dark:bg-[#1A1A1A]/95 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in origin-top-right">
-                        <div className="p-1.5 space-y-0.5">
-                            <button className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">
-                                <Mail size={14} className="text-gray-400" />
-                                Send Email
-                            </button>
-                             <button className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">
-                                <Shield size={14} className="text-gray-400" />
-                                Edit Role
-                            </button>
-                        </div>
-                        <div className="h-px bg-gray-100 dark:bg-white/5 mx-2 my-0.5"></div>
-                        <div className="p-1.5">
-                            <button className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
-                                <Trash2 size={14} />
-                                Remove Member
-                            </button>
-                        </div>
-                    </div>
-                  )}
-                </div>
+                    {/* Dropdown Menu */}
+                    {openMenuId === member.id && (
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-white/90 dark:bg-[#1A1A1A]/95 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in origin-top-right">
+                          {editingRoleId === member.id ? (
+                            <div className="p-2 space-y-1">
+                              <div className="px-2 py-1 text-[10px] uppercase font-bold text-gray-400">Select Role</div>
+                              {['admin', 'member', 'viewer'].map(role => (
+                                <button
+                                  key={role}
+                                  onClick={() => handleUpdateRole(member.id, member.userId, role as any)}
+                                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-bold rounded-xl transition-colors ${member.role === role ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'}`}
+                                >
+                                  <span className="capitalize">{role}</span>
+                                  {member.role === role && <Check size={14} />}
+                                </button>
+                              ))}
+                              <button 
+                                onClick={() => setEditingRoleId(null)}
+                                className="w-full text-center text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 mt-1 py-1"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="p-1.5 space-y-0.5">
+                                  <button 
+                                    onClick={() => setEditingRoleId(member.id)}
+                                    className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                  >
+                                      <Shield size={14} className="text-gray-400" />
+                                      Edit Role
+                                  </button>
+                              </div>
+                              <div className="h-px bg-gray-100 dark:bg-white/5 mx-2 my-0.5"></div>
+                              <div className="p-1.5">
+                                  <button 
+                                    onClick={() => handleRemoveMember(member.id, member.userId, member.name)}
+                                    className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                                  >
+                                      <Trash2 size={14} />
+                                      Remove Member
+                                  </button>
+                              </div>
+                            </>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                )}
              </div>
 
              {/* Profile Section with Z-Index 10 */}
-             <div className="flex flex-col items-center mb-6 relative z-10">
+             <div className="flex flex-col items-center mb-6 relative z-10 w-full">
                 <div className="relative mb-3">
                    <img 
                      src={member.avatar || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
@@ -182,15 +256,17 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
         ))}
         
         {/* Add New Card Placeholder */}
-        <button 
-          onClick={onAddMember}
-          className="border-2 border-dashed border-white/40 dark:border-white/10 rounded-[2rem] flex flex-col items-center justify-center gap-4 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-200 dark:hover:border-purple-800 hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-all min-h-[300px]"
-        >
-           <div className="w-16 h-16 rounded-full bg-white/50 dark:bg-white/5 flex items-center justify-center shadow-sm">
-              <Plus size={32} />
-           </div>
-           <span className="font-bold">Add New Member</span>
-        </button>
+        {(myRole === 'owner' || myRole === 'admin') && (
+          <button 
+            onClick={onAddMember}
+            className="border-2 border-dashed border-white/40 dark:border-white/10 rounded-[2rem] flex flex-col items-center justify-center gap-4 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-200 dark:hover:border-purple-800 hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-all min-h-[300px]"
+          >
+             <div className="w-16 h-16 rounded-full bg-white/50 dark:bg-white/5 flex items-center justify-center shadow-sm">
+                <Plus size={32} />
+             </div>
+             <span className="font-bold">Add New Member</span>
+          </button>
+        )}
       </div>
     </main>
   );
