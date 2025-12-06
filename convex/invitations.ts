@@ -90,16 +90,7 @@ export const accept = mutation({
     const invitation = await ctx.db.get(args.invitationId);
     if (!invitation) throw new Error("Invitation not found");
 
-    if (invitation.status !== "pending") {
-      throw new Error("Invitation is no longer valid");
-    }
-
-    if (invitation.expiresAt < Date.now()) {
-      await ctx.db.patch(args.invitationId, { status: "expired" });
-      throw new Error("Invitation has expired");
-    }
-
-    // Check if user is already a member
+    // Check if user is already a member (might have already accepted)
     const existingMembership = await ctx.db
       .query("teamMembers")
       .withIndex("by_team_and_user", (q) =>
@@ -108,7 +99,30 @@ export const accept = mutation({
       .unique();
 
     if (existingMembership) {
-      throw new Error("You are already a member of this team");
+      // User is already a member, just return success
+      return { success: true, teamId: invitation.teamId, alreadyMember: true };
+    }
+
+    // Check invitation status
+    if (invitation.status === "accepted") {
+      throw new Error("This invitation has already been accepted by someone else");
+    }
+
+    if (invitation.status === "expired") {
+      throw new Error("This invitation has expired");
+    }
+
+    if (invitation.status === "cancelled") {
+      throw new Error("This invitation has been cancelled");
+    }
+
+    if (invitation.status !== "pending") {
+      throw new Error("Invitation is no longer valid");
+    }
+
+    if (invitation.expiresAt < Date.now()) {
+      await ctx.db.patch(args.invitationId, { status: "expired" });
+      throw new Error("Invitation has expired");
     }
 
     // Add user to team
@@ -126,7 +140,7 @@ export const accept = mutation({
       acceptedAt: Date.now(),
     });
 
-    return { success: true, teamId: invitation.teamId };
+    return { success: true, teamId: invitation.teamId, alreadyMember: false };
   },
 });
 

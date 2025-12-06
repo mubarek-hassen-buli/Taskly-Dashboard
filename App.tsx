@@ -15,10 +15,11 @@ import AddFolderModal from './components/AddFolderModal';
 import AddProjectModal from './components/AddProjectModal';
 import SettingsPage from './components/SettingsPage';
 import NotificationsPage from './components/NotificationsPage';
-import { useConvexAuth, useQuery } from 'convex/react';
+import InvitePage from './components/InvitePage';
+import { useConvexAuth, useQuery, useMutation } from 'convex/react';
 import { api } from './convex/_generated/api';
 
-type ViewState = 'onboarding' | 'login' | 'signup' | 'dashboard' | 'task-overview' | 'calendar' | 'team-members' | 'settings' | 'notifications';
+type ViewState = 'onboarding' | 'login' | 'signup' | 'dashboard' | 'task-overview' | 'calendar' | 'team-members' | 'settings' | 'notifications' | 'invite';
 
 
 
@@ -30,6 +31,7 @@ const App = () => {
     toggleTheme, 
     currentView, 
     setCurrentView,
+    setCurrentTeamId,
     isTaskModalOpen, openTaskModal, closeTaskModal,
     isMemberModalOpen, openMemberModal, closeMemberModal,
     isFolderModalOpen, openFolderModal, closeFolderModal,
@@ -48,6 +50,17 @@ const App = () => {
 
   const user = useQuery(api.users.current);
   const [waitingForUser, setWaitingForUser] = useState(false);
+  const [invitationId, setInvitationId] = useState<string | null>(null);
+
+  // Check for invitation link in URL
+  useEffect(() => {
+    const path = window.location.pathname;
+    const inviteMatch = path.match(/\/invite\/([a-zA-Z0-9_]+)/);
+    if (inviteMatch && inviteMatch[1]) {
+      setInvitationId(inviteMatch[1]);
+      setCurrentView('invite');
+    }
+  }, [setCurrentView]);
 
   // Redirect based on auth status
   useEffect(() => {
@@ -70,6 +83,27 @@ const App = () => {
           
           setWaitingForUser(false);
           
+          
+          // Check if we need to switch to a team after invitation acceptance
+          // Check URL query parameters first (more robust than localStorage)
+          const urlParams = new URLSearchParams(window.location.search);
+          const switchingToTeam = urlParams.get('switchingToTeam');
+          
+          if (switchingToTeam) {
+            console.log('Switching to team from URL:', switchingToTeam);
+            setCurrentTeamId(switchingToTeam);
+            // Clean up URL
+            window.history.replaceState({}, '', '/');
+          } else {
+             // Fallback to localStorage logic just in case
+            const switchToTeamId = localStorage.getItem('switchToTeamId');
+            if (switchToTeamId) {
+              console.log('Switching to team from storage:', switchToTeamId);
+              setCurrentTeamId(switchToTeamId);
+              localStorage.removeItem('switchToTeamId');
+            }
+          }
+          
           if (!user.role) {
              // If user is logged in but hasn't completed profile (no role), send to signup flow (step 2)
              if (currentView !== 'signup') {
@@ -85,7 +119,7 @@ const App = () => {
         }
       }
     }
-  }, [isAuthenticated, isLoading, currentView, setCurrentView, user, waitingForUser]);
+  }, [isAuthenticated, isLoading, currentView, setCurrentView, user, waitingForUser, setCurrentTeamId]);
 
   if (isLoading) {
     return (
@@ -96,6 +130,21 @@ const App = () => {
   }
 
   const renderContent = () => {
+    // Handle invitation acceptance
+    if (currentView === 'invite' && invitationId) {
+      return (
+        <InvitePage 
+          invitationId={invitationId} 
+          onComplete={() => {
+            window.history.pushState({}, '', '/');
+            setInvitationId(null);
+            setCurrentView('dashboard');
+            window.location.reload(); // Reload to refresh team data
+          }} 
+        />
+      );
+    }
+
     // Show signup for profile completion even if authenticated
     if (currentView === 'signup') {
       return <Signup onNavigate={(view) => setCurrentView(view as any)} />;
