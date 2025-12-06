@@ -1,7 +1,8 @@
 import React from 'react';
 import { Search, Bell, Sun, Moon, SlidersHorizontal, LogOut } from 'lucide-react';
-import { CURRENT_USER } from '../constants';
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
 
 interface HeaderProps {
   theme?: string;
@@ -12,6 +13,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onNavigate }) => {
   const isDark = theme === 'dark';
   const { signOut } = useAuthActions();
+  const currentUser = useQuery(api.users.current);
 
   const handleSignOut = async () => {
     await signOut();
@@ -87,9 +89,27 @@ const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onNavigate }) => {
         
         <div className="h-8 w-px bg-gray-300/50 dark:bg-white/10 mx-2"></div>
 
-        <div className="flex items-center gap-3 pl-2 pr-1 py-1 bg-white/80 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-full cursor-pointer hover:bg-white dark:hover:bg-white/10 shadow-sm backdrop-blur-sm transition-all">
-          <img src={CURRENT_USER.avatar} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 mr-2">{CURRENT_USER.name}</span>
+        <div 
+          onClick={() => onNavigate?.('settings')}
+          className="flex items-center gap-3 pl-2 pr-1 py-1 bg-white/80 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-full cursor-pointer hover:bg-white dark:hover:bg-white/10 shadow-sm backdrop-blur-sm transition-all"
+        >
+          {currentUser && 'avatar' in currentUser && 'name' in currentUser ? (
+            <>
+              <img 
+                src={currentUser.avatar || 'https://via.placeholder.com/32'} 
+                alt="Profile" 
+                className="w-8 h-8 rounded-full object-cover" 
+              />
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 mr-2">
+                {currentUser.name}
+              </span>
+            </>
+          ) : (
+            <>
+              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+              <div className="w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mr-2"></div>
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -11,7 +11,7 @@ interface AddMemberModalProps {
 
 const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose }) => {
   const { currentTeamId } = useStore();
-  const sendInvitation = useAction(api.invitations.sendInvitation);
+  const sendInvitation = useAction(api.invitationActions.sendInvitation);
   
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
