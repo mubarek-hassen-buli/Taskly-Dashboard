@@ -106,16 +106,26 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
             
             <div className="flex items-center gap-4">
                {/* Mock Deadline Display */}
-               <div className="hidden md:flex items-center gap-3 bg-white/50 dark:bg-white/5 border border-white/60 dark:border-white/10 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm transition-all hover:bg-white/60 dark:hover:bg-white/10">
-                  <div className="relative flex items-center justify-center w-3 h-3">
-                     <div className="absolute w-full h-full bg-green-400 rounded-full animate-ping opacity-75"></div>
-                     <div className="relative w-2 h-2 bg-green-500 rounded-full shadow-sm shadow-green-400/50"></div>
+                  <div className="hidden md:flex items-center gap-3 bg-white/50 dark:bg-white/5 border border-white/60 dark:border-white/10 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm transition-all hover:bg-white/60 dark:hover:bg-white/10">
+                     <div className="relative flex items-center justify-center w-3 h-3">
+                        {currentProject?.dueDate ? (
+                          <>
+                            <div className="absolute w-full h-full bg-green-400 rounded-full animate-ping opacity-75"></div>
+                            <div className="relative w-2 h-2 bg-green-500 rounded-full shadow-sm shadow-green-400/50"></div>
+                          </>
+                        ) : (
+                          <div className="relative w-2 h-2 bg-gray-400 rounded-full"></div>
+                        )}
+                     </div>
+                     <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-0.5">Deadline</span>
+                        <span className="text-xs font-bold text-gray-900 dark:text-white leading-none">
+                          {currentProject?.dueDate 
+                            ? new Date(currentProject.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                            : 'No Deadline Set'}
+                        </span>
+                     </div>
                   </div>
-                  <div className="flex flex-col">
-                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-0.5">Deadline</span>
-                     <span className="text-xs font-bold text-gray-900 dark:text-white leading-none">Sep 24, 2025</span>
-                  </div>
-               </div>
 
                <div className="flex items-center gap-3 ml-4">
                   <div className="flex -space-x-2">

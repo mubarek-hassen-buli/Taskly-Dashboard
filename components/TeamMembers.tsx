@@ -3,6 +3,7 @@ import { Search, Filter, Mail, MoreHorizontal, Plus, Trash2, Shield, Check } fro
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
+import MemberProfileModal from './modals/MemberProfileModal';
 
 interface TeamMembersProps {
   onAddMember?: () => void;
@@ -12,6 +13,8 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
   const { currentTeamId } = useStore();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [memberToView, setMemberToView] = useState<any>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   
   // Queries & Mutations
@@ -247,7 +250,13 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
              </div>
 
              <div className="flex gap-3 relative z-10">
-                <button className="flex-1 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-lg shadow-gray-200 dark:shadow-none">
+                <button 
+                  onClick={() => {
+                    setMemberToView(member);
+                    setIsProfileModalOpen(true);
+                  }}
+                  className="flex-1 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-lg shadow-gray-200 dark:shadow-none"
+                >
                    View Profile
                 </button>
              </div>
@@ -268,6 +277,13 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
           </button>
         )}
       </div>
+      
+      {/* Profile Modal */}
+      <MemberProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+        member={memberToView} 
+      />
     </main>
   );
 };
