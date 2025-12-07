@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, Search, Filter, Columns, List } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
+import { useDashboard } from '../context/DashboardContext';
 import { TabStatus } from '../types';
-import TaskCard from './TaskCard';
+import TaskCard from '../components/TaskCard';
 
 interface TaskOverviewProps {
   onAddTask?: () => void;
@@ -13,15 +14,22 @@ interface TaskOverviewProps {
 
 const TaskOverview: React.FC<TaskOverviewProps> = ({ onAddTask, onAddMember }) => {
   const { currentTeamId, currentProjectId } = useStore();
+  const [filter, setFilter] = useState<'All' | 'My Tasks' | 'Assigned'>('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch tasks for the selected project
-  const tasks = useQuery(api.tasks.list, currentProjectId ? { projectId: currentProjectId as any } : "skip");
+  // useDashboard hook for global data
+  const { tasks: allTasks, projects, teamMembers, currentUser, isLoading } = useDashboard();
   
-  // Fetch team members for the current team
-  const teamMembers = useQuery(api.teams.listMembers, currentTeamId ? { teamId: currentTeamId as any } : "skip");
-  
-  // Fetch user details for team members
-  const users = useQuery(api.users.list);
+  // Fetch user details for team members (Context usually has them, but DashboardLayout fetches users list too)
+  const { users } = useDashboard();
+
+  // Tasks to display
+  // Logic: If project selected, show project tasks. Else show all team tasks (or empty?)
+  // TaskOverview usually implies "All tasks for the team/workspace".
+  // So we default to allTasks, but filter if currentProjectId is set.
+  const tasks = currentProjectId 
+      ? allTasks?.filter(t => t.projectId === currentProjectId) 
+      : allTasks; // Show all if no project selected? Or none? Original code: filtered by project ID if present.
   
   // Map team members to user details
   const teamMembersWithDetails = useMemo(() => {
@@ -32,12 +40,47 @@ const TaskOverview: React.FC<TaskOverviewProps> = ({ onAddTask, onAddMember }) =
     }).filter(Boolean);
   }, [teamMembers, users]);
 
+  // Filter tasks based on search and filter
+  const filteredTasks = useMemo(() => {
+    if (!tasks) return [];
+    
+    let result = tasks;
+
+    // Filter by type
+    if (filter === 'My Tasks') {
+      result = result.filter(t => t.createdBy === currentUser?._id);
+    } 
+
+    // Search
+    if (searchQuery) {
+      result = result.filter(t => 
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    return result;
+  }, [tasks, filter, searchQuery, currentUser]);
+
   const columns = [
     { id: TabStatus.ToDo, label: 'To Do', color: 'bg-yellow-500' },
     { id: TabStatus.InProgress, label: 'In Progress', color: 'bg-blue-500' },
     { id: TabStatus.UnderReview, label: 'Under Review', color: 'bg-purple-500' },
     { id: TabStatus.Completed, label: 'Completed', color: 'bg-green-500' },
   ];
+
+  if (isLoading) {
+      return (
+          <div className="p-8 h-full flex flex-col animate-pulse">
+              <div className="h-8 bg-gray-200 dark:bg-white/10 w-1/4 mb-8"></div>
+              <div className="flex gap-6 h-full overflow-hidden">
+                  {[1,2,3,4].map(i => (
+                      <div key={i} className="min-w-[320px] h-full bg-gray-200 dark:bg-white/10 rounded-3xl"></div>
+                  ))}
+              </div>
+          </div>
+      )
+  }
 
   return (
     <main className="flex-1 p-8 h-full flex flex-col min-h-0 custom-scrollbar overflow-y-auto">
@@ -111,13 +154,22 @@ const TaskOverview: React.FC<TaskOverviewProps> = ({ onAddTask, onAddMember }) =
             <input 
               type="text" 
               placeholder="Search tasks..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white/50 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900 transition-all font-medium placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white"
             />
          </div>
          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10 transition-colors">
+            <button 
+                onClick={() => setFilter(filter === 'All' ? 'My Tasks' : 'All')}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-sm font-bold transition-colors ${
+                    filter !== 'All' 
+                    ? 'bg-purple-100 border-purple-200 text-purple-700 dark:bg-purple-900/40 dark:border-purple-800 dark:text-purple-300' 
+                    : 'bg-white/50 dark:bg-white/5 border-white/60 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10'
+                }`}
+            >
                <Filter size={16} />
-               Filter
+               {filter === 'All' ? 'Filter: All' : filter}
             </button>
             <button className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10 transition-colors">
                Sort By: Priority
@@ -128,7 +180,7 @@ const TaskOverview: React.FC<TaskOverviewProps> = ({ onAddTask, onAddMember }) =
       {/* Kanban Board */}
       <div className="flex gap-6 overflow-x-auto pb-4 h-full custom-scrollbar">
         {columns.map(col => {
-          const colTasks = tasks?.filter(t => t.status === col.id) || [];
+          const colTasks = filteredTasks?.filter(t => t.status === col.id) || [];
           
           return (
             <div key={col.id} className="min-w-[320px] max-w-[320px] flex flex-col h-full">

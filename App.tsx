@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import Dashboard from './components/Dashboard';
-import TaskOverview from './components/TaskOverview';
-import CalendarPage from './components/CalendarPage';
-import TeamMembers from './components/TeamMembers';
+import Dashboard from './pages/DashboardHome';
+import TaskOverview from './pages/Tasks';
+import CalendarPage from './pages/Calendar';
+import TeamMembers from './pages/Members';
 import Onboarding from './components/Onboarding';
 import Login from './components/Login';
 import Signup from './components/Signup';
@@ -13,13 +13,12 @@ import AddTaskModal from './components/AddTaskModal';
 import AddMemberModal from './components/AddMemberModal';
 import AddFolderModal from './components/AddFolderModal';
 import AddProjectModal from './components/AddProjectModal';
-import SettingsPage from './components/SettingsPage';
-import NotificationsPage from './components/NotificationsPage';
+import SettingsPage from './pages/Settings';
+import NotificationsPage from './pages/Notifications';
 import InvitePage from './components/InvitePage';
 import { useConvexAuth, useQuery, useMutation } from 'convex/react';
 import { api } from './convex/_generated/api';
-import ChatListener from './components/ChatListener';
-import { Toaster } from 'react-hot-toast';
+import DashboardLayout from './layouts/DashboardLayout';
 
 type ViewState = 'onboarding' | 'login' | 'signup' | 'dashboard' | 'task-overview' | 'calendar' | 'team-members' | 'settings' | 'notifications' | 'invite';
 
@@ -163,55 +162,23 @@ const App = () => {
 
     // Authenticated Views
     return (
-      <>
-        {/* Top Section (Mother Content) */}
-        <div className="relative z-10">
-          <Header 
-            theme={theme} 
-            toggleTheme={toggleTheme} 
-            onNavigate={(view) => setCurrentView(view as any)}
+      <DashboardLayout>
+          {currentView === 'dashboard' && <Dashboard onAddTask={openTaskModal} onAddMember={openMemberModal} />}
+          {currentView === 'task-overview' && <TaskOverview onAddTask={openTaskModal} onAddMember={openMemberModal} />}
+          {currentView === 'calendar' && <CalendarPage onAddTask={openTaskModal} />}
+          {currentView === 'team-members' && <TeamMembers onAddMember={openMemberModal} />}
+          {currentView === 'settings' && <SettingsPage />}
+          {currentView === 'notifications' && <NotificationsPage />}
+          
+          <AddTaskModal isOpen={isTaskModalOpen} onClose={closeTaskModal} />
+          <AddMemberModal isOpen={isMemberModalOpen} onClose={closeMemberModal} />
+          <AddFolderModal isOpen={isFolderModalOpen} onClose={closeFolderModal} />
+          <AddProjectModal 
+            isOpen={isProjectModalOpen} 
+            onClose={closeProjectModal} 
+            folderId={useStore.getState().selectedFolderId as any}
           />
-        </div>
-
-        {/* Son Container: Floating Liquid Glass Effect - Added pt-6 for spacing */}
-        <div className="flex-1 px-6 pb-6 pt-6 min-h-0 relative z-10 animate-fade-in">
-          <div className="flex h-full w-full rounded-[2.5rem] overflow-hidden relative shadow-2xl ring-1 ring-white/60 dark:ring-white/10">
-            
-            {/* Glass Material Layer */}
-            <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-3xl saturate-150 z-0 transition-colors duration-500"></div>
-            
-            {/* Content Wrapper */}
-            <div className="relative z-10 flex h-full w-full">
-              <Sidebar 
-                currentView={currentView} 
-                onNavigate={(view) => setCurrentView(view as any)} 
-                onAddProject={openFolderModal}
-                onCreateProject={openProjectModal}
-              />
-              
-              {/* Relative Container for Pages + Modal Overlay */}
-              <div className="flex-1 relative h-full overflow-hidden">
-                  {currentView === 'dashboard' && <Dashboard onAddTask={openTaskModal} onAddMember={openMemberModal} />}
-                  {currentView === 'task-overview' && <TaskOverview onAddTask={openTaskModal} onAddMember={openMemberModal} />}
-                  {currentView === 'calendar' && <CalendarPage onAddTask={openTaskModal} />}
-                  {currentView === 'team-members' && <TeamMembers onAddMember={openMemberModal} />}
-                  {currentView === 'settings' && <SettingsPage />}
-                  {currentView === 'notifications' && <NotificationsPage />}
-                  
-                  <AddTaskModal isOpen={isTaskModalOpen} onClose={closeTaskModal} />
-                  <AddMemberModal isOpen={isMemberModalOpen} onClose={closeMemberModal} />
-                  <AddFolderModal isOpen={isFolderModalOpen} onClose={closeFolderModal} />
-                  <AddProjectModal 
-                    isOpen={isProjectModalOpen} 
-                    onClose={closeProjectModal} 
-                    folderId={useStore.getState().selectedFolderId as any}
-                  />
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </>
+      </DashboardLayout>
     );
   };
 
@@ -219,10 +186,6 @@ const App = () => {
     // Mother Container with Ambient Background
     <div className="flex flex-col h-screen w-full relative overflow-hidden bg-[#F2F4F8] dark:bg-[#0F1115] transition-colors duration-500">
       
-      {/* Global Listeners & Overlays */}
-      {isAuthenticated && <ChatListener />}
-      <Toaster />
-
       {/* Ambient Light/Liquid Background Layer */}
       <div className="absolute inset-0 pointer-events-none transition-opacity duration-1000">
         {/* Top Left Purple Blob */}

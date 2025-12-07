@@ -1,22 +1,39 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Users } from 'lucide-react';
+import { 
+  Bell, 
+  Search, 
+  Calendar, 
+  Filter, 
+  Plus, 
+  MoreHorizontal,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  TrendingUp,
+  MessageCircle,
+  Video,
+  Users
+} from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
+import { useDashboard } from '../context/DashboardContext';
 import { TabStatus } from '../types';
-import TaskCard from './TaskCard';
-import ChatWidget from './ChatWidget';
-import CalendarWidget from './CalendarWidget';
-import TaskGraphWidget from './TaskGraphWidget';
-import CreateFolderModal from './modals/CreateFolderModal';
-import CreateProjectModal from './modals/CreateProjectModal';
-import CreateTaskModal from './modals/CreateTaskModal';
+import TaskCard from '../components/TaskCard';
+import ChatWidget from '../components/ChatWidget';
+import CalendarWidget from '../components/CalendarWidget';
+import MeetingWidget from '../components/MeetingWidget';
+import TaskGraphWidget from '../components/TaskGraphWidget';
+import CreateFolderModal from '../components/modals/CreateFolderModal';
+import CreateProjectModal from '../components/modals/CreateProjectModal';
+import CreateTaskModal from '../components/modals/CreateTaskModal';
+import AddTaskModal from '../components/AddTaskModal';
+import AddMemberModal from '../components/AddMemberModal';
 
 interface DashboardProps {
-  onAddTask?: () => void;
-  onAddMember?: () => void;
+  onAddTask: () => void;
+  onAddMember: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
@@ -28,20 +45,28 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
     clearUnreadMessages();
   }, [clearUnreadMessages]);
 
-  // Fetch user's teams
+  // Fetch user's teams (Needed for header/context)
   const teams = useQuery(api.teams.getByUser);
-  
-  // Fetch projects for the current team
-  const projects = useQuery(api.projects.list, currentTeamId ? { teamId: currentTeamId as any } : "skip");
-  
-  // Fetch tasks for the selected project
-  const tasks = useQuery(api.tasks.list, currentProjectId ? { projectId: currentProjectId as any } : "skip");
 
-  // Fetch team members for the current team
-  const teamMembers = useQuery(api.teams.listMembers, currentTeamId ? { teamId: currentTeamId as any } : "skip");
+  // useDashboard hook for global data
+  const { tasks: allTasks, projects, teamMembers, currentUser, isLoading } = useDashboard();
   
-  // Fetch user details for team members
-  const users = useQuery(api.users.list);
+  // Derived state: Filter tasks by current project
+  // If no project selected, show nothing or all? Usually dashboard shows by project.
+  // If currentProjectId is null, maybe show all 'My Tasks'? 
+  // For now, filtering by project if selected, else show allTasks (or empty).
+  // The original code filtered by projectId if present, else returned everything? No, useQuery skipped specific args.
+  const tasks = useMemo(() => {
+      if (!allTasks) return [];
+      if (currentProjectId) {
+          return allTasks.filter(t => t.projectId === currentProjectId);
+      }
+      return allTasks; // Return all tasks if no project selected? Or empty?
+  }, [allTasks, currentProjectId]);
+
+  // Fetch user details for team members - GlobalDataManager handles users.list, we can use that from context eventually
+  // But DashboardContext has 'users'
+  const { users } = useDashboard(); // Destructuring users from context
   
   // Map team members to user details
   const teamMembersWithDetails = useMemo(() => {
@@ -59,7 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
     }
   }, [teams, currentTeamId, setCurrentTeamId]);
 
-  // Get current team and project names
+  // Get current team and project details
   const currentTeam = teams?.find(t => t._id === currentTeamId);
   const teamName = currentTeam?.name || 'Taskly - Saas Dashboard';
   const currentProject = projects?.find(p => p._id === currentProjectId);
@@ -75,6 +100,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
     if (!tasks) return 0;
     return tasks.filter(t => t.status === status).length;
   };
+
+  // Loading State
+  if (isLoading) {
+    return (
+        <div className="h-full flex flex-col p-8 animate-pulse">
+            <div className="h-8 bg-gray-200 dark:bg-white/10 rounded w-1/3 mb-6"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 h-64 bg-gray-200 dark:bg-white/10 rounded-3xl"></div>
+                <div className="h-64 bg-gray-200 dark:bg-white/10 rounded-3xl"></div>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <>
@@ -200,8 +238,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
         {/* Top Section: Tasks and Calendar sharing the same row grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 auto-rows-fr">
            {/* Render Tasks */}
-           {filteredTasks.map(task => (
-             <TaskCard key={task.id} task={task} />
+           {filteredTasks?.map(task => (
+             <TaskCard key={task._id} task={task} />
            ))}
 
            {/* Render Calendar inline with tasks */}
@@ -225,10 +263,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
       </div>
     </main>
     
-    {/* Modals */}
-    <CreateFolderModal />
-    <CreateProjectModal />
-    <CreateTaskModal />
+    {/* Modals are rendered in App.tsx or Layout now, but keeping local if needed? 
+        The DashboardLayout handles global modals, but App.tsx passed onAddMember...
+        Actually App.tsx renders AddTaskModal etc.
+        So we don't need to render them here unless they are local.
+        Original code rendered CreateFolderModal etc.
+        Let's keep them if they are controlled by local state, but they seem to be controlled by useStore.
+        App.tsx/DashboardLayout renders the modals based on store...
+        Wait, App.tsx renders <AddTaskModal isOpen={isTaskModalOpen} ... />
+        So we DO NOT need to render them here.
+        But Original Dashboard.tsx rendered:
+        <CreateFolderModal />
+        <CreateProjectModal />
+        <CreateTaskModal />
+        Wait, these are the "old" modals? Or definitions?
+        Let's check file list. `CreateFolderModal` exists in `modals/`.
+        `AddTaskModal.tsx` is at `components/AddTaskModal.tsx`.
+        The user previously implemented "Add Task Modal" in `AddTaskModal.tsx`.
+        So `CreateTaskModal` inside `modals` might be legacy or alternative.
+        I'll stick to what App.tsx renders. App.tsx renders `AddTaskModal`.
+        So I will NOT render them here to avoid duplication.
+    */}
   </>
   );
 };

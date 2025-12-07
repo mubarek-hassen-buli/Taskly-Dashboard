@@ -160,6 +160,75 @@ export const list = query({
 });
 
 /**
+ * List all tasks for a team (across all projects).
+ */
+export const listByTeam = query({
+  args: {
+    teamId: v.id("teams"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    // Verify team membership
+    const membership = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_team_and_user", (q) =>
+        q.eq("teamId", args.teamId).eq("userId", userId)
+      )
+      .unique();
+
+    if (!membership) return [];
+
+    // 1. Get all projects for this team
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
+      .collect();
+
+    const projectIds = projects.map(p => p._id);
+
+    if (projectIds.length === 0) return [];
+
+    // 2. Get tasks for these projects
+    const tasks = await Promise.all(
+        projectIds.map((projectId) => 
+            ctx.db
+                .query("tasks")
+                .withIndex("by_project", q => q.eq("projectId", projectId))
+                .collect()
+        )
+    );
+
+    const allTasks = tasks.flat();
+
+    // 3. Enrich with assignees
+    const tasksWithAssignees = await Promise.all(
+      allTasks.map(async (task) => {
+        const assigneeRecords = await ctx.db
+          .query("taskAssignees")
+          .withIndex("by_task", (q) => q.eq("taskId", task._id))
+          .collect();
+
+        const assignees = await Promise.all(
+          assigneeRecords.map(async (r) => {
+            const user = await ctx.db.get(r.userId);
+            return user;
+          })
+        );
+
+        return {
+          ...task,
+          assignees: assignees.filter((u) => u !== null),
+        };
+      })
+    );
+
+    return tasksWithAssignees;
+  },
+});
+
+/**
  * Update task status.
  */
 export const updateStatus = mutation({
@@ -317,3 +386,5 @@ export const remove = mutation({
     await ctx.db.delete(args.taskId);
   },
 });
+
+
