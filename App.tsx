@@ -18,6 +18,8 @@ import NotificationsPage from './components/NotificationsPage';
 import InvitePage from './components/InvitePage';
 import { useConvexAuth, useQuery, useMutation } from 'convex/react';
 import { api } from './convex/_generated/api';
+import ChatListener from './components/ChatListener';
+import { Toaster } from 'react-hot-toast';
 
 type ViewState = 'onboarding' | 'login' | 'signup' | 'dashboard' | 'task-overview' | 'calendar' | 'team-members' | 'settings' | 'notifications' | 'invite';
 
@@ -104,7 +106,7 @@ const App = () => {
             }
           }
           
-          if (!user.role) {
+          if (!(user as any).role) {
              // If user is logged in but hasn't completed profile (no role), send to signup flow (step 2)
              if (currentView !== 'signup') {
                setCurrentView('signup');
@@ -217,6 +219,10 @@ const App = () => {
     // Mother Container with Ambient Background
     <div className="flex flex-col h-screen w-full relative overflow-hidden bg-[#F2F4F8] dark:bg-[#0F1115] transition-colors duration-500">
       
+      {/* Global Listeners & Overlays */}
+      {isAuthenticated && <ChatListener />}
+      <Toaster />
+
       {/* Ambient Light/Liquid Background Layer */}
       <div className="absolute inset-0 pointer-events-none transition-opacity duration-1000">
         {/* Top Left Purple Blob */}

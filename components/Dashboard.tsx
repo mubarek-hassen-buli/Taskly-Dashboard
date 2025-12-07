@@ -20,8 +20,13 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
-  const { currentTeamId, setCurrentTeamId, currentProjectId, openTaskModal } = useStore();
+  const { currentTeamId, setCurrentTeamId, currentProjectId, openTaskModal, clearUnreadMessages } = useStore();
   const [activeTab, setActiveTab] = useState<TabStatus>(TabStatus.ToDo);
+
+  useEffect(() => {
+    // Clear notifications when entering dashboard (where chat lives)
+    clearUnreadMessages();
+  }, [clearUnreadMessages]);
 
   // Fetch user's teams
   const teams = useQuery(api.teams.getByUser);

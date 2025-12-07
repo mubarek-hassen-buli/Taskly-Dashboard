@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type ViewState = 'onboarding' | 'login' | 'signup' | 'dashboard' | 'task-overview' | 'calendar' | 'team-members' | 'settings' | 'notifications';
+type ViewState = 'onboarding' | 'login' | 'signup' | 'dashboard' | 'task-overview' | 'calendar' | 'team-members' | 'settings' | 'notifications' | 'invite';
 
 interface AppState {
   // Theme
@@ -36,6 +36,11 @@ interface AppState {
   isProjectModalOpen: boolean;
   openProjectModal: () => void;
   closeProjectModal: () => void;
+
+  // Chat Notifications
+  unreadMessagesCount: number;
+  addUnreadMessage: () => void;
+  clearUnreadMessages: () => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -89,4 +94,9 @@ export const useStore = create<AppState>((set) => ({
   isProjectModalOpen: false,
   openProjectModal: () => set({ isProjectModalOpen: true }),
   closeProjectModal: () => set({ isProjectModalOpen: false }),
+
+  // Chat Notifications
+  unreadMessagesCount: 0,
+  addUnreadMessage: () => set((state) => ({ unreadMessagesCount: state.unreadMessagesCount + 1 })),
+  clearUnreadMessages: () => set({ unreadMessagesCount: 0 }),
 }));
