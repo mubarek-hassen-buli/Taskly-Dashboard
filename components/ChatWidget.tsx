@@ -1,10 +1,10 @@
 import React from 'react';
 import { MessageCircle, ChevronDown, Bell, MoreHorizontal, Smile, Send } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
+import { useDashboard } from '../context/DashboardContext';
 
 const ChatWidget = () => {
   const { 
-    messages, 
     currentUser, 
     messageInput, 
     setMessageInput, 
@@ -13,6 +13,9 @@ const ChatWidget = () => {
     scrollRef,
     currentTeamId
   } = useChat();
+  
+  // Use global messages from context for instant load
+  const { messages } = useDashboard();
 
   // Handle Enter key
   const handleKeyDown = (e: React.KeyboardEvent) => {

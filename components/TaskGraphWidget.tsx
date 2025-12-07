@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react';
 import { PieChart as PieChartIcon, MoreHorizontal, ArrowUpRight } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { useQuery } from 'convex/react';
-import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
+import { useDashboard } from '../context/DashboardContext';
 
 // Custom Tooltip Component
 const CustomTooltip = ({ active, payload }: any) => {
@@ -32,11 +31,22 @@ const CustomTooltip = ({ active, payload }: any) => {
 const TaskGraphWidget = () => {
   const { currentProjectId } = useStore();
   
-  // Fetch tasks for the current project
-  const tasks = useQuery(
-    api.tasks.list,
-    currentProjectId ? { projectId: currentProjectId as any } : "skip"
-  );
+  // Use global tasks from context
+  const { tasks: allTasks } = useDashboard();
+
+  // Filter tasks for the current project
+  // If no project is selected, this widget generally shows "Select Project" state,
+  // OR we could show "All Tasks" stats.
+  // The original code showed "No Project Selected" if currentProjectId was null.
+  // We will preserve that behavior for now, or we can filter.
+  
+  const tasks = useMemo(() => {
+    if (!allTasks) return [];
+    if (currentProjectId) {
+      return allTasks.filter(t => t.projectId === currentProjectId);
+    }
+    return []; // Return empty if no project, or we could return allTasks if we wanted aggregate stats
+  }, [allTasks, currentProjectId]);
 
   // Calculate stats from real data
   const stats = useMemo(() => {
@@ -113,7 +123,7 @@ const TaskGraphWidget = () => {
   }
 
   // Show loading state
-  if (tasks === undefined) {
+  if (allTasks === undefined) {
     return (
       <div className="bg-white dark:bg-white/5 backdrop-blur-md p-6 rounded-[2rem] shadow-sm border border-gray-50 dark:border-white/5 h-full flex items-center justify-center">
         <div className="text-center">
