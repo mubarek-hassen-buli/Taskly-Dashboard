@@ -255,9 +255,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
         </div>
 
         {/* Bottom Section: Graph & Chat */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[24rem]">
-          <TaskGraphWidget />
-          <ChatWidget />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="h-[30rem]">
+             <TaskGraphWidget />
+          </div>
+          <div className="h-[30rem]">
+             <ChatWidget />
+          </div>
         </div>
 
       </div>
