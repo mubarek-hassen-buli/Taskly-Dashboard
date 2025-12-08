@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./users";
 import { notifyTeam } from "./notifications";
 
@@ -142,7 +143,7 @@ export const accept = mutation({
     });
 
     // Notify the team about the new member
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db.get(userId as Id<"users">);
     const userName = (user && user.name) || (user && user.email) || "A new member";
     
     await notifyTeam(ctx, invitation.teamId, {
