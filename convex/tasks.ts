@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "./users";
+import { notifyTeam } from "./notifications";
 
 /**
  * Create a new task.
@@ -98,6 +99,16 @@ export const create = mutation({
       teamId: project.teamId,
       projectId: args.projectId,
       createdAt: Date.now(),
+    });
+
+    // Notify Team
+    await notifyTeam(ctx, project.teamId, {
+      type: "task_created",
+      title: "New Task Created",
+      content: `New task in ${project.name}: ${args.title}`,
+      targetId: taskId,
+      targetType: "task",
+      senderId: userId,
     });
 
     return taskId;
@@ -284,6 +295,16 @@ export const updateStatus = mutation({
       projectId: task.projectId,
       createdAt: Date.now(),
     });
+
+    // Notify Team
+    await notifyTeam(ctx, project.teamId, {
+      type: "task_status_change",
+      title: "Task Status Updated",
+      content: `Task "${task.title}" is now ${args.status}`,
+      targetId: args.taskId,
+      targetType: "task",
+      senderId: userId,
+    });
   },
 });
 
@@ -384,6 +405,16 @@ export const remove = mutation({
 
     // Delete task
     await ctx.db.delete(args.taskId);
+
+    // Notify Team
+    await notifyTeam(ctx, project.teamId, {
+      type: "task_deleted",
+      title: "Task Deleted",
+      content: `Task "${task.title}" was deleted.`,
+      targetId: args.taskId,
+      targetType: "task",
+      senderId: userId,
+    });
   },
 });
 

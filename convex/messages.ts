@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "./users";
 import { paginationOptsValidator } from "convex/server";
+import { notifyTeam } from "./notifications";
 
 /**
  * Send a message to a team or channel.
@@ -38,9 +39,20 @@ export const send = mutation({
       createdAt: Date.now(),
     });
 
-    // Notify mentioned users (basic implementation)
-    // In a real app, you'd parse args.content for @mentions
-    // For now, we'll skip complex parsing to keep it simple as per instructions
+    // Notify team members (except sender)
+    // We truncate content to avoid long notifications
+    const shortContent = args.content.length > 50 
+        ? args.content.substring(0, 50) + "..." 
+        : args.content;
+        
+    await notifyTeam(ctx, args.teamId, {
+      type: "message",
+      title: "New Message",
+      content: shortContent,
+      targetId: args.teamId,
+      targetType: "team",
+      senderId: userId,
+    });
 
     return messageId;
   },

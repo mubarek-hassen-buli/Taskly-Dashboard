@@ -8,6 +8,7 @@ export interface DashboardData {
   teamMembers: any[] | undefined; // Using any for now to match the enriched member object from queries
   users: Doc<'users'>[] | undefined;
   messages: any[] | undefined;
+  notifications: Doc<'notifications'>[] | undefined;
   currentUser: Doc<'users'> | null | undefined;
   isLoading: boolean;
 }

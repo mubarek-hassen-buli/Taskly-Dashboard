@@ -279,8 +279,14 @@ export default defineSchema({
       v.literal("like"),
       v.literal("message"),
       v.literal("task_assigned"),
+      v.literal("task_created"),
+      v.literal("task_deleted"),
+      v.literal("task_status_change"),
       v.literal("task_completed"),
-      v.literal("deadline")
+      v.literal("deadline"),
+      v.literal("member_added"),
+      v.literal("member_removed"),
+      v.literal("role_updated")
     ),
     title: v.string(),
     content: v.string(),

@@ -18,6 +18,7 @@ import type * as http from "../http.js";
 import type * as invitationActions from "../invitationActions.js";
 import type * as invitations from "../invitations.js";
 import type * as messages from "../messages.js";
+import type * as notifications from "../notifications.js";
 import type * as projects from "../projects.js";
 import type * as tasks from "../tasks.js";
 import type * as teams from "../teams.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   invitationActions: typeof invitationActions;
   invitations: typeof invitations;
   messages: typeof messages;
+  notifications: typeof notifications;
   projects: typeof projects;
   tasks: typeof tasks;
   teams: typeof teams;

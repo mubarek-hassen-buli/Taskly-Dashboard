@@ -11,8 +11,10 @@ import {
   Lock,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus
+  Plus,
+  Bell
 } from 'lucide-react';
+import { useDashboard } from '../context/DashboardContext';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
@@ -29,9 +31,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onAddProject
   const [isProjectsOpen, setIsProjectsOpen] = useState(true);
   const [isTeamMenuOpen, setIsTeamMenuOpen] = useState(false);
   const { currentTeamId, setCurrentTeamId, openFolderModal, openProjectModal } = useStore();
+  
+  // Use Dashboard Context for data
+  const { notifications, teamMembers } = useDashboard();
 
-  // Fetch user's teams
+  // Fetch user's teams (keep this as it's specific to the user, not the dashboard data usually)
   const teams = useQuery(api.teams.getByUser);
+
+  // Calculate unread notifications
+  const unreadCount = notifications?.filter(n => !n.isRead).length || 0;
+  const unreadBadge = unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount.toString()) : undefined;
 
   // Set current team on mount
   useEffect(() => {
@@ -149,10 +158,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onAddProject
             onClick={() => onNavigate('dashboard')}
             collapsed={isCollapsed}
           />
+          
+          <NavItem 
+            icon={<Bell size={20} />} 
+            label="Notifications" 
+            active={currentView === 'notifications'}
+            badge={unreadBadge}
+            onClick={() => onNavigate('notifications')}
+            collapsed={isCollapsed}
+          />
+
           <NavItem 
             icon={<ListTodo size={20} />} 
             label="Task Overview" 
-            badge="6" 
             active={currentView === 'task-overview'}
             onClick={() => onNavigate('task-overview')}
             collapsed={isCollapsed}
@@ -160,7 +178,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onAddProject
           <NavItem 
             icon={<CalendarDays size={20} />} 
             label="Calendar" 
-            badge="2" 
             active={currentView === 'calendar'}
             onClick={() => onNavigate('calendar')}
             collapsed={isCollapsed}

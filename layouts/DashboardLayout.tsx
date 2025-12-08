@@ -30,8 +30,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     const teamMembers = useQuery(api.teams.listMembers, currentTeamId ? { teamId: currentTeamId as any } : "skip");
     const users = useQuery(api.users.list);
     
-    // 3. Chat Data
+    // 3. Chat & Notifications Data
     const messages = useQuery(api.messages.list, currentTeamId ? { teamId: currentTeamId as any } : "skip");
+    const notifications = useQuery(api.notifications.list);
 
     // Calculate Loading State
     // We consider it loading if we have a team ID but data is undefined
@@ -48,6 +49,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             teamMembers,
             users,
             messages,
+            notifications,
             currentUser,
             isLoading
         }}>

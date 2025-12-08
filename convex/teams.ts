@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "./users";
+import { createNotification, notifyTeam } from "./notifications";
 
 /**
  * Create a new team.
@@ -163,8 +164,8 @@ export const addMember = mutation({
       joinedAt: Date.now(),
     });
 
-    // Create notification for the added user
-    await ctx.db.insert("notifications", {
+    // Notify the added user
+    await createNotification(ctx, {
       userId: userToAdd._id,
       type: "invite",
       title: "New Team Invitation",
@@ -172,8 +173,16 @@ export const addMember = mutation({
       targetId: args.teamId,
       targetType: "team",
       senderId: currentUserId,
-      isRead: false,
-      createdAt: Date.now(),
+    });
+
+    // Notify the team
+    await notifyTeam(ctx, args.teamId, {
+      type: "member_added",
+      title: "New Team Member",
+      content: `${userToAdd.name || userToAdd.email} was added to the team.`,
+      targetId: args.teamId,
+      targetType: "team",
+      senderId: currentUserId,
     });
   },
 });
@@ -262,6 +271,31 @@ export const updateMemberRole = mutation({
     }
 
     await ctx.db.patch(targetMember._id, { role: args.role });
+
+    // Notify the user
+    await createNotification(ctx, {
+      userId: args.userId,
+      type: "role_updated",
+      title: "Role Updated",
+      content: `Your role has been updated to ${args.role}.`,
+      targetId: args.teamId,
+      targetType: "team",
+      senderId: currentUserId,
+    });
+
+    // Notify the team (optional, but requested)
+    // Fetch target user name for message
+    const targetUser = await ctx.db.get(args.userId);
+    const targetName = targetUser?.name || targetUser?.email || "A member";
+
+    await notifyTeam(ctx, args.teamId, {
+      type: "role_updated",
+      title: "Member Role Changed",
+      content: `${targetName}'s role was updated to ${args.role}.`,
+      targetId: args.teamId,
+      targetType: "team",
+      senderId: currentUserId,
+    });
   },
 });
 
@@ -322,5 +356,18 @@ export const removeMember = mutation({
     }
 
     await ctx.db.delete(targetMember._id);
+
+    // Notify the team
+    const targetUser = await ctx.db.get(args.userId);
+    const targetName = targetUser?.name || targetUser?.email || "A member";
+
+    await notifyTeam(ctx, args.teamId, {
+      type: "member_removed",
+      title: "Member Removed",
+      content: `${targetName} was removed from the team.`,
+      targetId: args.teamId,
+      targetType: "team",
+      senderId: currentUserId,
+    });
   },
 });

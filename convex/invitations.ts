@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { getAuthUserId } from "./users";
+import { notifyTeam } from "./notifications";
 
 /**
  * Create invitation record
@@ -138,6 +139,19 @@ export const accept = mutation({
       status: "accepted",
       acceptedBy: userId,
       acceptedAt: Date.now(),
+    });
+
+    // Notify the team about the new member
+    const user = await ctx.db.get(userId);
+    const userName = (user && user.name) || (user && user.email) || "A new member";
+    
+    await notifyTeam(ctx, invitation.teamId, {
+      type: "member_added",
+      title: "New Team Member",
+      content: `${userName} joined the team.`,
+      targetId: invitation.teamId,
+      targetType: "team",
+      senderId: userId,
     });
 
     return { success: true, teamId: invitation.teamId, alreadyMember: false };
