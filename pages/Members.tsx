@@ -4,6 +4,8 @@ import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
 import { useDashboard } from '../context/DashboardContext';
+import MemberActionsModal from '../components/modals/MemberActionsModal';
+import AddMemberModal from '../components/AddMemberModal';
 
 interface TeamMembersProps {
   onAddMember?: () => void;
@@ -12,6 +14,10 @@ interface TeamMembersProps {
 const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
   const { currentTeamId } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Modal states
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [isActionsModalOpen, setIsActionsModalOpen] = useState(false);
 
   // useDashboard hook for global data
   const { teamMembers, users, currentUser, isLoading } = useDashboard();
@@ -21,7 +27,7 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
     if (!teamMembers || !users) return [];
     return teamMembers.map(member => {
       const user = users.find(u => u._id === member.userId);
-      return user ? { ...user, role: member.role, joinedAt: member._creationTime } : null;
+      return user ? { ...user, role: member.role, joinedAt: member._creationTime, userId: member.userId, teamMemberId: member._id } : null;
     }).filter(Boolean);
   }, [teamMembers, users]);
 
@@ -44,6 +50,11 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
     }
   };
 
+  const handleOpenActions = (member: any) => {
+      setSelectedMember(member);
+      setIsActionsModalOpen(true);
+  };
+
   if (isLoading) {
       return (
           <div className="p-8 h-full flex flex-col animate-pulse">
@@ -58,6 +69,7 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
   }
 
   return (
+    <>
     <main className="flex-1 p-8 h-full flex flex-col min-h-0 custom-scrollbar overflow-y-auto">
       {/* Header */}
       <div className="flex flex-col gap-1 mb-8 shrink-0">
@@ -104,7 +116,12 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
 
       {/* Members Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-4">
-        {filteredMembers.map((member: any) => (
+        {filteredMembers.map((member: any) => {
+          // Determine Image Source: Check bio, image, avatar fields
+          const imageUrl = member.avatar || member.image;
+          const initial = member.name ? member.name.charAt(0).toUpperCase() : member.email?.charAt(0).toUpperCase() || '?';
+          
+          return (
           <div key={member._id} className="group bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/60 dark:border-white/10 rounded-[2rem] p-6 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-300 relative overflow-hidden">
              
              {/* Hover Gradient */}
@@ -112,17 +129,27 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
 
              <div className="relative flex flex-col items-center text-center">
                 <div className="absolute top-0 right-0">
-                   <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-white/50 dark:hover:bg-white/10">
+                   <button 
+                     onClick={() => handleOpenActions(member)} 
+                     className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-white/50 dark:hover:bg-white/10"
+                   >
                       <MoreVertical size={16} />
                    </button>
                 </div>
 
-                <div className="w-20 h-20 rounded-full p-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm mb-4 relative">
-                   <img 
-                      src={member.image || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
-                      alt={member.name}
-                      className="w-full h-full rounded-full object-cover"
-                   />
+                <div className="w-20 h-20 rounded-full p-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm mb-4 relative flex items-center justify-center overflow-hidden">
+                   {imageUrl ? (
+                       <img 
+                          src={imageUrl} 
+                          alt={member.name}
+                          className="w-full h-full rounded-full object-cover"
+                       />
+                   ) : (
+                       <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 flex items-center justify-center text-2xl font-bold text-purple-600 dark:text-purple-300">
+                           {initial}
+                       </div>
+                   )}
+                   
                    <div className={`absolute bottom-0 right-0 w-5 h-5 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center ${member.role === 'owner' ? 'bg-yellow-400' : 'bg-purple-500'}`}>
                       {member.role === 'owner' ? <Shield size={10} className="text-white fill-current" /> : <User size={10} className="text-white" />}
                    </div>
@@ -135,21 +162,22 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
                    {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                 </div>
 
+                {/* Using only the delete button on card since user asked to remove icons but make delete work. 
+                    Actually, if 'More Options' has delete, we might not need this row?
+                    But user said "make the delete icon work correctly". I'll keep it as a quick action.
+                */}
                 <div className="w-full flex items-center justify-center gap-3 border-t border-gray-100 dark:border-white/10 pt-4">
-                   <button className="p-2 rounded-full bg-gray-50 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 transition-colors">
-                      <Mail size={16} />
-                   </button>
-                   <button className="p-2 rounded-full bg-gray-50 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 transition-colors">
-                      <Phone size={16} />
-                   </button>
-                   {/* Delete button (only for admins/owner ideally) */}
-                   <button className="p-2 rounded-full bg-gray-50 dark:bg-white/5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors">
+                   <button 
+                     onClick={() => handleOpenActions(member)}
+                     className="p-2 rounded-full bg-gray-50 dark:bg-white/5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
+                     title="Remove Member"
+                   >
                       <Trash2 size={16} />
                    </button>
                 </div>
              </div>
           </div>
-        ))}
+        )})}
 
         {/* Add New Card */}
         <button 
@@ -163,6 +191,14 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
         </button>
       </div>
     </main>
+
+    {/* Actions Modal */}
+    <MemberActionsModal 
+        isOpen={isActionsModalOpen}
+        onClose={() => setIsActionsModalOpen(false)}
+        member={selectedMember}
+    />
+    </>
   );
 };
 

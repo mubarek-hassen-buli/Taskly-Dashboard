@@ -1,19 +1,28 @@
 import React, { useMemo } from 'react';
 import { Calendar as CalendarIcon, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useQuery } from 'convex/react';
-import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
+import { useDashboard } from '../context/DashboardContext';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from 'date-fns';
 
 const CalendarWidget = () => {
   const { currentProjectId } = useStore();
   const [currentDate, setCurrentDate] = React.useState(new Date());
   
-  // Fetch tasks for the current project
-  const tasks = useQuery(
-    api.tasks.list,
-    currentProjectId ? { projectId: currentProjectId as any } : "skip"
-  );
+  // Use global data
+  const { tasks: allTasks } = useDashboard();
+
+  // Filter tasks for the current project
+  // If no project is selected, show all? Or filter by nothing?
+  // The user said "calendar should be per project". If no project is selected, showing all is reasonable default.
+  // Or we could return empty array if strict "per project".
+  // Given dashboard context, usually "No project" means "All".
+  const tasks = useMemo(() => {
+    if (!allTasks) return [];
+    if (currentProjectId) {
+      return allTasks.filter(t => t.projectId === currentProjectId);
+    }
+    return allTasks;
+  }, [allTasks, currentProjectId]);
 
   // Get calendar data
   const calendarData = useMemo(() => {
