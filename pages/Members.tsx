@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { Mail, Phone, MoreVertical, Plus, Search, Shield, User, Trash2 } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
 import { useDashboard } from '../context/DashboardContext';
-import MemberActionsModal from '../components/modals/MemberActionsModal';
+import MemberMenu from '../components/MemberMenu';
 import AddMemberModal from '../components/AddMemberModal';
 
 interface TeamMembersProps {
@@ -14,10 +14,10 @@ interface TeamMembersProps {
 const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
   const { currentTeamId } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Modal states
-  const [selectedMember, setSelectedMember] = useState<any>(null);
-  const [isActionsModalOpen, setIsActionsModalOpen] = useState(false);
+
+  // Menu State
+  const [activeMenuMemberId, setActiveMenuMemberId] = useState<string | null>(null);
+  const menuButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
   // useDashboard hook for global data
   const { teamMembers, users, currentUser, isLoading } = useDashboard();
@@ -50,9 +50,13 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
     }
   };
 
-  const handleOpenActions = (member: any) => {
-      setSelectedMember(member);
-      setIsActionsModalOpen(true);
+  const toggleMenu = (e: React.MouseEvent, memberId: string) => {
+      e.stopPropagation();
+      if (activeMenuMemberId === memberId) {
+          setActiveMenuMemberId(null);
+      } else {
+          setActiveMenuMemberId(memberId);
+      }
   };
 
   if (isLoading) {
@@ -120,7 +124,8 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
           // Determine Image Source: Check bio, image, avatar fields
           const imageUrl = member.avatar || member.image;
           const initial = member.name ? member.name.charAt(0).toUpperCase() : member.email?.charAt(0).toUpperCase() || '?';
-          
+          const isMenuOpen = activeMenuMemberId === member._id;
+
           return (
           <div key={member._id} className="group bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/60 dark:border-white/10 rounded-[2rem] p-6 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-300 relative overflow-hidden">
              
@@ -130,11 +135,22 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
              <div className="relative flex flex-col items-center text-center">
                 <div className="absolute top-0 right-0">
                    <button 
-                     onClick={() => handleOpenActions(member)} 
-                     className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-white/50 dark:hover:bg-white/10"
+                     ref={(el) => { menuButtonRefs.current[member._id] = el; }}
+                     onClick={(e) => toggleMenu(e, member._id)} 
+                     className={`p-2 transition-colors rounded-full hover:bg-white/50 dark:hover:bg-white/10 ${isMenuOpen ? 'text-gray-900 dark:text-white bg-white/50 dark:bg-white/10' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                    >
                       <MoreVertical size={16} />
                    </button>
+                   
+                   {/* Render Menu if active */}
+                   {isMenuOpen && (
+                       <MemberMenu 
+                           member={member} 
+                           isOpen={isMenuOpen} 
+                           onClose={() => setActiveMenuMemberId(null)} 
+                           triggerRef={{ current: menuButtonRefs.current[member._id] }} // Pass a ref object wrapper
+                       />
+                   )}
                 </div>
 
                 <div className="w-20 h-20 rounded-full p-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm mb-4 relative flex items-center justify-center overflow-hidden">
@@ -162,18 +178,14 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
                    {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                 </div>
 
-                {/* Using only the delete button on card since user asked to remove icons but make delete work. 
-                    Actually, if 'More Options' has delete, we might not need this row?
-                    But user said "make the delete icon work correctly". I'll keep it as a quick action.
-                */}
-                <div className="w-full flex items-center justify-center gap-3 border-t border-gray-100 dark:border-white/10 pt-4">
-                   <button 
-                     onClick={() => handleOpenActions(member)}
-                     className="p-2 rounded-full bg-gray-50 dark:bg-white/5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
-                     title="Remove Member"
-                   >
-                      <Trash2 size={16} />
-                   </button>
+                <div className="w-full flex items-center justify-center gap-3 border-t border-gray-100 dark:border-white/10 pt-4 opacity-0">
+                  {/* Invisible spacer to keep layout if needed, or just remove since we have menu now. 
+                      User originally asked to remove icons but keep delete functionality working.
+                      With the new menu, delete is IN the menu. So we can probably remove this row entirely or leave empty?
+                      User said "make the delete icon work correctly" previously, but now "make the modal that open when u touch the three dots too be like this image".
+                      The image likely handles all actions. I will remove the bottom row to clean up if icons are gone. 
+                      Actually, I'll keep it simple and clean as requested - no icons. 
+                  */}
                 </div>
              </div>
           </div>
@@ -191,13 +203,6 @@ const TeamMembers: React.FC<TeamMembersProps> = ({ onAddMember }) => {
         </button>
       </div>
     </main>
-
-    {/* Actions Modal */}
-    <MemberActionsModal 
-        isOpen={isActionsModalOpen}
-        onClose={() => setIsActionsModalOpen(false)}
-        member={selectedMember}
-    />
     </>
   );
 };
