@@ -17,7 +17,8 @@ export default defineSchema({
     isAnonymous: v.optional(v.boolean()),
 
     // Profile Information
-    avatar: v.optional(v.string()), // URL to avatar image
+    avatar: v.optional(v.string()), // URL to avatar image (e.g. from auth provider or external)
+    avatarStorageId: v.optional(v.id("_storage")), // Convex Storage ID for uploaded avatars
     role: v.optional(v.string()), // User's role (e.g., "Designer", "Developer")
     bio: v.optional(v.string()),
 

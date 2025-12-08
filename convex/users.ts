@@ -43,16 +43,12 @@ export const store = mutation({
     }
 
     // Create new user
-    // Note: For password auth, 'name' might need to be set via a separate profile update 
-    // if not provided during signup flow (Convex Auth Password provider usually handles email/password).
-    // We'll default name to the email prefix or "User" if not present.
     const name = identity.name || identity.email!.split("@")[0];
 
     const newUserId = await ctx.db.insert("users", {
       name: name,
       email: identity.email!,
       avatar: identity.pictureUrl || "",
-      // Don't set role here - force user through profile setup
       status: "Online",
       theme: "light",
       createdAt: now,
@@ -63,15 +59,13 @@ export const store = mutation({
         push: true,
         desktop: true,
       },
+      // Optional fields defaulting to undefined implicitly
     });
 
     return newUserId;
   },
 });
 
-/**
- * Returns the current logged-in user's profile.
- */
 /**
  * Returns the current logged-in user's profile.
  */
@@ -84,11 +78,23 @@ export const current = query({
     }
     
     // The subject is in format: userId|sessionId
-    // Extract just the userId part
     const userId = identity.subject.split("|")[0];
+    const normalizedId = ctx.db.normalizeId("users", userId);
+    if (!normalizedId) return null;
     
     // Query by _id instead of email
-    const user = await ctx.db.get(userId as any);
+    const user = await ctx.db.get(normalizedId);
+    
+    if (!user) return null;
+
+    // Generate signed URL if avatarStorageId exists
+    if (user.avatarStorageId) {
+        const url = await ctx.storage.getUrl(user.avatarStorageId);
+        if (url) {
+            return { ...user, avatar: url };
+        }
+    }
+
     return user;
   },
 });
@@ -104,11 +110,12 @@ export async function getAuthUserId(ctx: { auth: any; db: any }) {
   }
   
   // The subject is in format: userId|sessionId
-  // Extract just the userId part
   const userId = identity.subject.split("|")[0];
+  const normalizedId = ctx.db.normalizeId("users", userId);
+  if (!normalizedId) return null;
   
   // Verify the user exists
-  const user = await ctx.db.get(userId as any);
+  const user = await ctx.db.get(normalizedId);
   return user?._id ?? null;
 }
 
@@ -119,6 +126,7 @@ export async function getAuthUserId(ctx: { auth: any; db: any }) {
 export const update = mutation({
   args: {
     avatar: v.optional(v.string()),
+    avatarStorageId: v.optional(v.id("_storage")),
     role: v.optional(v.string()),
     phone: v.optional(v.string()),
     bio: v.optional(v.string()),
@@ -144,9 +152,20 @@ export const list = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
 
-    // Return all users (you may want to add pagination later)
     const users = await ctx.db.query("users").collect();
-    return users;
+    
+    // Map users to include signed URLs
+    const usersWithUrls = await Promise.all(users.map(async (u) => {
+        if (u.avatarStorageId) {
+            const url = await ctx.storage.getUrl(u.avatarStorageId);
+            if (url) {
+                return { ...u, avatar: url };
+            }
+        }
+        return u;
+    }));
+    
+    return usersWithUrls;
   },
 });
 

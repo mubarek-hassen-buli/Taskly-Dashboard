@@ -1,20 +1,37 @@
-import React, { useState } from 'react';
-import { User, Bell, Shield, Key, Globe, Moon, Monitor, Trash2, Camera, LogOut } from 'lucide-react';
-import { useQuery } from 'convex/react';
+import React, { useState, useRef, useEffect } from 'react';
+import { User, Bell, Shield, Key, Globe, Moon, Monitor, Trash2, Camera, LogOut, CheckCircle, Loader2 } from 'lucide-react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useStore } from '../store/useStore';
 import { useDashboard } from '../context/DashboardContext';
+import toast from 'react-hot-toast';
 
 const SettingsPage: React.FC = () => {
   const { theme, toggleTheme } = useStore();
   const [activeTab, setActiveTab] = useState('profile');
 
   // useDashboard hook for global data
-  // Even Settings page benefits from shared currentUser to avoid re-fetch logic
   const { currentUser, isLoading } = useDashboard();
   
-  // NOTE: If SettingsPage allows mutating user data, it should use mutations.
-  // The 'currentUser' from context matches the one from api.users.current.
+  // Local state for editing
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Mutations
+  const updateProfile = useMutation(api.users.update);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize local state when currentUser loads
+  useEffect(() => {
+    if (currentUser) {
+      setName(currentUser.name || '');
+      setBio(currentUser.bio || '');
+    }
+  }, [currentUser]);
   
   const sections = [
     { id: 'profile', label: 'My Profile', icon: User },
@@ -23,17 +40,83 @@ const SettingsPage: React.FC = () => {
     { id: 'preferences', label: 'Preferences', icon: Globe },
   ];
 
+  const handleUpdateProfile = async () => {
+    if (!currentUser) return;
+    setIsSaving(true);
+    try {
+      await updateProfile({
+        name,
+        bio,
+      });
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB');
+        return;
+    }
+
+    setIsUploading(true);
+    try {
+        // 1. Generate Upload URL
+        const postUrl = await generateUploadUrl();
+        
+        // 2. Upload File
+        const result = await fetch(postUrl, {
+            method: "POST",
+            headers: { "Content-Type": file.type },
+            body: file,
+        });
+
+        if (!result.ok) throw new Error("Upload failed");
+        
+        const { storageId } = await result.json();
+
+        // 3. Update Profile with Storage ID
+        await updateProfile({
+            avatarStorageId: storageId,
+        });
+        
+        toast.success('Avatar updated successfully');
+    } catch (error) {
+        console.error(error);
+        toast.error('Failed to upload avatar');
+    } finally {
+        setIsUploading(false);
+        // Reset input
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   if (isLoading) {
       return (
           <div className="p-8 h-full flex flex-col animate-pulse">
-             <div className="h-8 bg-gray-200 dark:bg-white/10 w-1/4 mb-8"></div>
-             <div className="flex gap-8 h-full">
-                 <div className="w-64 h-full bg-gray-200 dark:bg-white/10 rounded-3xl"></div>
-                 <div className="flex-1 h-full bg-gray-200 dark:bg-white/10 rounded-3xl"></div>
-             </div>
+              <div className="h-8 bg-gray-200 dark:bg-white/10 w-1/4 mb-8"></div>
+              <div className="flex gap-8 h-full">
+                  <div className="w-64 h-full bg-gray-200 dark:bg-white/10 rounded-3xl"></div>
+                  <div className="flex-1 h-full bg-gray-200 dark:bg-white/10 rounded-3xl"></div>
+              </div>
           </div>
       )
   }
+
+  // Determine Image Source
+  const imageUrl = currentUser?.avatar || currentUser?.image;
+  const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : currentUser?.email?.charAt(0).toUpperCase() || '?';
 
   return (
     <main className="flex-1 p-8 h-full flex flex-col min-h-0 custom-scrollbar overflow-y-auto">
@@ -75,23 +158,46 @@ const SettingsPage: React.FC = () => {
           {activeTab === 'profile' && (
             <div className="max-w-2xl space-y-8 animate-fade-in">
               <div className="flex items-center gap-6">
-                 <div className="relative group">
-                    <div className="w-24 h-24 rounded-full p-1 bg-white dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 group-hover:border-purple-500 transition-colors">
-                       <img 
-                          src={currentUser?.image || `https://ui-avatars.com/api/?name=${currentUser?.name || 'User'}&background=random`} 
-                          alt="Profile" 
-                          className="w-full h-full rounded-full object-cover"
-                       />
-                       <button className="absolute bottom-0 right-0 p-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Camera size={14} />
-                       </button>
+                 <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+                    <div className="w-24 h-24 rounded-full p-1 bg-white dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 group-hover:border-purple-500 transition-colors overflow-hidden flex items-center justify-center">
+                       {isUploading ? (
+                           <Loader2 className="animate-spin text-purple-500" size={32} />
+                       ) : imageUrl ? (
+                            <img 
+                                src={imageUrl} 
+                                alt="Profile" 
+                                className="w-full h-full rounded-full object-cover"
+                            />
+                       ) : (
+                           <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 flex items-center justify-center text-4xl font-bold text-purple-600 dark:text-purple-300">
+                               {initial}
+                           </div>
+                       )}
+
+                       {/* Overlay */}
+                       <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="text-white" size={24} />
+                       </div>
                     </div>
+                    
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleAvatarChange} 
+                        className="hidden" 
+                        accept="image/*"
+                    />
                  </div>
+
                  <div>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{currentUser?.name || 'User Name'}</h2>
                     <p className="text-gray-500 dark:text-gray-400">{currentUser?.email || 'email@example.com'}</p>
-                    <button className="mt-2 text-sm font-bold text-purple-600 dark:text-purple-400 hover:underline">
-                      Change Avatar
+                    <button 
+                        onClick={handleAvatarClick}
+                        className="mt-2 text-sm font-bold text-purple-600 dark:text-purple-400 hover:underline"
+                        disabled={isUploading}
+                    >
+                      {isUploading ? 'Uploading...' : 'Change Avatar'}
                     </button>
                  </div>
               </div>
@@ -102,8 +208,9 @@ const SettingsPage: React.FC = () => {
                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase ml-1">Full Name</label>
                        <input 
                          type="text" 
-                         defaultValue={currentUser?.name}
-                         className="w-full px-4 py-3 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                         value={name}
+                         onChange={(e) => setName(e.target.value)}
+                         className="w-full px-4 py-3 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 text-gray-900 dark:text-white"
                        />
                     </div>
                     <div className="space-y-2">
@@ -121,17 +228,30 @@ const SettingsPage: React.FC = () => {
                     <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase ml-1">Bio</label>
                     <textarea 
                       rows={4} 
-                      className="w-full px-4 py-3 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-none"
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-none text-gray-900 dark:text-white"
                       placeholder="Tell us a little about yourself..."
                     ></textarea>
                  </div>
               </div>
 
               <div className="pt-6 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-3">
-                 <button className="px-6 py-2.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                 <button 
+                    onClick={() => {
+                        setName(currentUser?.name || '');
+                        setBio(currentUser?.bio || '');
+                    }}
+                    className="px-6 py-2.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                 >
                     Cancel
                  </button>
-                 <button className="px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">
+                 <button 
+                    onClick={handleUpdateProfile}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                 >
+                    {isSaving && <Loader2 size={16} className="animate-spin" />}
                     Save Changes
                  </button>
               </div>
