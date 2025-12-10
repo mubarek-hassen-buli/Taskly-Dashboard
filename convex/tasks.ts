@@ -26,6 +26,12 @@ export const create = mutation({
     startDate: v.optional(v.number()),
     dueDate: v.optional(v.number()),
     assigneeIds: v.array(v.id("users")),
+    attachments: v.optional(v.array(v.object({
+      name: v.string(),
+      storageId: v.id("_storage"),
+      type: v.string(),
+      size: v.number(),
+    }))),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -55,11 +61,28 @@ export const create = mutation({
       startDate: args.startDate,
       dueDate: args.dueDate,
       progress: 0,
-      attachmentsCount: 0,
+      attachmentsCount: args.attachments ? args.attachments.length : 0,
       createdBy: userId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+
+    // Handle Attachments
+    if (args.attachments && args.attachments.length > 0) {
+      await Promise.all(
+        args.attachments.map(async (file) => {
+          await ctx.db.insert("attachments", {
+            taskId,
+            uploadedBy: userId,
+            name: file.name,
+            storageId: file.storageId,
+            type: file.type,
+            size: file.size,
+            uploadedAt: Date.now(),
+          });
+        })
+      );
+    }
 
     // Handle assignees
     if (args.assigneeIds.length > 0) {

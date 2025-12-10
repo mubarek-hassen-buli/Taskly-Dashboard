@@ -122,7 +122,7 @@ const App = () => {
     }
   }, [isAuthenticated, isLoading, currentView, setCurrentView, user, waitingForUser, setCurrentTeamId]);
 
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && user === undefined)) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#F2F4F8] dark:bg-[#0F1115]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>

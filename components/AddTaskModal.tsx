@@ -137,6 +137,12 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose }) => {
         priority: priority as any,
         status: 'To Do' as any,
         assigneeIds: selectedAssignees.length > 0 ? selectedAssignees as any : [],
+        attachments: uploadedFiles.length > 0 ? uploadedFiles.map(f => ({
+          name: f.name,
+          storageId: f.storageId as any, // validation checked in upload
+          type: f.type,
+          size: f.size
+        })) : undefined
       });
 
       // Note: File attachments stored in uploadedFiles with storageIds
