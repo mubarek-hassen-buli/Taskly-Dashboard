@@ -105,6 +105,14 @@ export const accept = mutation({
       return { success: true, teamId: invitation.teamId, alreadyMember: true };
     }
 
+    // Security Check: Verify that the authenticated user's email matches the invitation email
+    const user = await ctx.db.get(userId as Id<"users">);
+    if (!user) throw new Error("User not found");
+
+    if (user.email !== invitation.email) {
+      throw new Error(`This invitation is for ${invitation.email}, but you are logged in as ${user.email}. Please log out and sign in with the correct account.`);
+    }
+
     // Check invitation status
     if (invitation.status === "accepted") {
       throw new Error("This invitation has already been accepted by someone else");
@@ -143,7 +151,7 @@ export const accept = mutation({
     });
 
     // Notify the team about the new member
-    const user = await ctx.db.get(userId as Id<"users">);
+    // user is already fetched above for security check
     const userName = (user && user.name) || (user && user.email) || "A new member";
     
     await notifyTeam(ctx, invitation.teamId, {

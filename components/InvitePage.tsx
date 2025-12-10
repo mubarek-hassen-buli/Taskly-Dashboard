@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation } from 'convex/react';
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from '../convex/_generated/api';
-import { CheckCircle, XCircle, Loader } from 'lucide-react';
+import { CheckCircle, XCircle, Loader, LogOut } from 'lucide-react';
 
 interface InvitePageProps {
   invitationId: string;
@@ -10,6 +11,7 @@ interface InvitePageProps {
 
 const InvitePage: React.FC<InvitePageProps> = ({ invitationId, onComplete }) => {
   const acceptInvitation = useMutation(api.invitations.accept);
+  const { signOut } = useAuthActions();
   
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -34,12 +36,19 @@ const InvitePage: React.FC<InvitePageProps> = ({ invitationId, onComplete }) => 
       } catch (error: any) {
         console.error('Error accepting invitation:', error);
         setStatus('error');
-        setErrorMessage(error.message || 'Failed to accept invitation');
+        // Clean up error message to be user friendly
+        const message = error.message || 'Failed to accept invitation';
+        setErrorMessage(message.replace('Uncaught Error: ', '')); // Convex sometimes wraps errors
       }
     };
 
     handleAcceptInvitation();
-  }, [invitationId, acceptInvitation, onComplete]);
+  }, [invitationId, acceptInvitation]);
+
+  const handleSignOut = async () => {
+      await signOut();
+      window.location.reload(); // Reload to trigger auth flow again
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900 flex items-center justify-center p-4">
@@ -84,15 +93,26 @@ const InvitePage: React.FC<InvitePageProps> = ({ invitationId, onComplete }) => 
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
               Invitation Error
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-gray-600 dark:text-gray-400 mb-6 px-4 leading-relaxed">
               {errorMessage}
             </p>
-            <button
-              onClick={onComplete}
-              className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
-            >
-              Go to Dashboard
-            </button>
+            <div className="flex flex-col gap-3">
+                <button
+                onClick={onComplete}
+                className="w-full px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                >
+                Go to Dashboard
+                </button>
+                {errorMessage.includes("logged in as") && (
+                    <button
+                        onClick={handleSignOut}
+                        className="w-full px-6 py-3 bg-transparent border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <LogOut size={16} />
+                        Log Out & Switch Account
+                    </button>
+                )}
+            </div>
           </div>
         )}
       </div>
