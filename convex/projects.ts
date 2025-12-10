@@ -32,6 +32,10 @@ export const create = mutation({
       throw new Error("You are not a member of this team");
     }
 
+    if (membership.role !== "owner" && membership.role !== "admin") {
+      throw new Error("Only team admins can create projects");
+    }
+
     const projectId = await ctx.db.insert("projects", {
       name: args.name,
       description: args.description,
@@ -119,6 +123,10 @@ export const updateStatus = mutation({
 
     if (!membership) {
       throw new Error("You are not a member of this team");
+    }
+
+    if (membership.role !== "owner" && membership.role !== "admin") {
+      throw new Error("Only team admins can update project status");
     }
 
     await ctx.db.patch(args.projectId, {

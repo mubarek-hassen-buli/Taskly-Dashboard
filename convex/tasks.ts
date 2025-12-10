@@ -52,6 +52,10 @@ export const create = mutation({
       throw new Error("You are not a member of this team");
     }
 
+    if (membership.role === "viewer") {
+      throw new Error("Viewers cannot create tasks");
+    }
+
     const taskId = await ctx.db.insert("tasks", {
       title: args.title,
       description: args.description,
@@ -295,6 +299,10 @@ export const updateStatus = mutation({
 
     if (!membership) throw new Error("Unauthorized");
 
+    if (membership.role === "viewer") {
+      throw new Error("Viewers cannot update task status");
+    }
+
     const updates: any = {
       status: args.status,
       updatedAt: Date.now(),
@@ -377,6 +385,10 @@ export const update = mutation({
 
     if (!membership) throw new Error("Unauthorized");
 
+    if (membership.role === "viewer") {
+      throw new Error("Viewers cannot edit tasks");
+    }
+
     // Update task
     await ctx.db.patch(args.taskId, {
       ...(args.title && { title: args.title }),
@@ -417,6 +429,10 @@ export const remove = mutation({
       .unique();
 
     if (!membership) throw new Error("Unauthorized");
+
+    if (membership.role === "viewer") {
+      throw new Error("Viewers cannot delete tasks");
+    }
 
     // Delete task assignees
     const assignees = await ctx.db

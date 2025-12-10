@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { X, Calendar, AlignLeft, Flag, UploadCloud, FileText, Image, Trash2 } from 'lucide-react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -45,7 +46,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
   const [priority, setPriority] = useState(task?.priority || 'Medium');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   // Update state when task changes
   React.useEffect(() => {
@@ -62,7 +62,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
     if (!files || files.length === 0) return;
 
     setUploading(true);
-    setError('');
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -70,7 +69,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
 
         // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
-          setError(`File ${file.name} is too large. Max size is 10MB.`);
+          toast.error(`File ${file.name} is too large. Max size is 10MB.`);
           continue;
         }
 
@@ -95,9 +94,10 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
           type: file.type,
         });
       }
+      toast.success('Files uploaded successfully');
     } catch (err: any) {
       console.error('Error uploading files:', err);
-      setError(err.message || 'Failed to upload files');
+      toast.error(err.message || 'Failed to upload files');
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -111,9 +111,10 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
 
     try {
       await removeAttachment({ attachmentId: attachmentId as any });
+      toast.success('Attachment removed');
     } catch (err: any) {
       console.error('Error removing attachment:', err);
-      setError(err.message || 'Failed to remove attachment');
+      toast.error(err.message || 'Failed to remove attachment');
     }
   };
 
@@ -125,12 +126,11 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
 
   const handleUpdateTask = async () => {
     if (!title.trim()) {
-      setError('Task title is required');
+      toast.error('Task title is required');
       return;
     }
 
     setLoading(true);
-    setError('');
 
     try {
       await updateTask({
@@ -141,10 +141,12 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
         priority: priority as any,
       });
 
+      toast.success('Task updated successfully');
       onClose();
     } catch (err: any) {
       console.error('Error updating task:', err);
-      setError(err.message || 'Failed to update task');
+      const message = err.message ? err.message.replace('Uncaught Error: ', '') : 'Failed to update task';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -315,11 +317,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ isOpen, onClose, task }) 
               )}
            </div>
 
-           {error && (
-             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium">
-               {error}
-             </div>
-           )}
+
 
         </div>
 

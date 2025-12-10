@@ -28,6 +28,10 @@ export const create = mutation({
       throw new Error("You are not a member of this team");
     }
 
+    if (membership.role !== "owner" && membership.role !== "admin") {
+      throw new Error("Only team admins can manage folders");
+    }
+
     // Get highest order to append
     const existingFolders = await ctx.db
       .query("folders")

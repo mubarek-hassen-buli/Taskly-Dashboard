@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { useStore } from './store/useStore';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -222,6 +223,14 @@ const App = () => {
           animation: fade-in 0.3s ease-out forwards;
         }
       `}</style>
+      <Toaster position="bottom-right" toastOptions={{
+        className: 'dark:bg-[#1A1A1A] dark:text-white dark:border dark:border-white/10',
+        style: {
+          borderRadius: '12px',
+          background: '#333',
+          color: '#fff',
+        },
+      }} />
     </div>
   );
 };

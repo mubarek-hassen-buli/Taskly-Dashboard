@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import toast from 'react-hot-toast';
 import { MoreHorizontal, Paperclip, CalendarClock, X, FileText, Image, Download, Edit, Trash2, CheckCircle, ChevronDown } from 'lucide-react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -103,8 +104,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
       });
       setShowStatusMenu(false);
       setShowMenu(false);
-    } catch (error) {
+      toast.success('Task status updated');
+    } catch (error: any) {
       console.error('Failed to update status:', error);
+      const message = error.message ? error.message.replace('Uncaught Error: ', '') : 'Failed to update status';
+      toast.error(message);
     }
   };
 
@@ -113,8 +117,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
       try {
         await deleteTask({ taskId: task._id });
         setShowMenu(false);
-      } catch (error) {
+        toast.success('Task deleted');
+      } catch (error: any) {
         console.error('Failed to delete task:', error);
+         const message = error.message ? error.message.replace('Uncaught Error: ', '') : 'Failed to delete task';
+        toast.error(message);
       }
     }
   };

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { X, FolderPlus, Palette, Layout, Check, Calendar } from 'lucide-react';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -31,7 +32,6 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, fold
   const [selectedColor, setSelectedColor] = useState('bg-purple-500');
   const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const colors = [
     'bg-purple-500', 'bg-blue-500', 'bg-pink-500', 
@@ -41,17 +41,16 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, fold
 
   const handleCreateProject = async () => {
     if (!projectName.trim()) {
-      setError('Project name is required');
+      toast.error('Project name is required');
       return;
     }
 
     if (!currentTeamId) {
-      setError('No team selected. Please refresh the page.');
+      toast.error('No team selected. Please refresh the page.');
       return;
     }
 
     setLoading(true);
-    setError('');
 
     try {
       await createProject({
@@ -63,13 +62,15 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, fold
       });
 
       // Success - close modal and reset
+      toast.success('Project created successfully');
       setProjectName('');
       setSelectedColor('bg-purple-500');
       setDueDate('');
       onClose();
     } catch (err: any) {
       console.error('Error creating project:', err);
-      setError(err.message || 'Failed to create project');
+      const message = err.message ? err.message.replace('Uncaught Error: ', '') : 'Failed to create project';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -161,11 +162,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, fold
               </div>
            </div>
 
-           {error && (
-             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium">
-               {error}
-             </div>
-           )}
+
 
         </div>
 

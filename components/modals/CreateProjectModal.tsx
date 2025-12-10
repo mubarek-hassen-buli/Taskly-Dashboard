@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { X, Briefcase, Folder } from 'lucide-react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -32,13 +33,11 @@ const CreateProjectModal = () => {
   const [folderId, setFolderId] = useState<string>('');
   const [color, setColor] = useState(COLORS[3]); // Default Blue
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   if (!isProjectModalOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -56,15 +55,17 @@ const CreateProjectModal = () => {
         color,
       });
 
+      toast.success('Project created successfully');
       closeProjectModal();
       setName('');
       setFolderId('');
       setColor(COLORS[3]);
     } catch (err: any) {
       if (err instanceof z.ZodError) {
-        setError(err.issues[0].message);
+        toast.error(err.issues[0].message);
       } else {
-        setError(err.message || 'Failed to create project');
+        const message = err.message ? err.message.replace('Uncaught Error: ', '') : 'Failed to create project';
+        toast.error(message);
       }
     } finally {
       setLoading(false);
@@ -151,11 +152,7 @@ const CreateProjectModal = () => {
             </div>
           </div>
 
-          {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium">
-              {error}
-            </div>
-          )}
+
 
           {/* Actions */}
           <div className="flex items-center gap-3 pt-2">

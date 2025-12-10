@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { X, Calendar, User, AlignLeft, Flag, Tag, Plus, UploadCloud, Link as LinkIcon, FileText, Trash2 } from 'lucide-react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -116,12 +117,12 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose }) => {
 
   const handleCreateTask = async () => {
     if (!title.trim()) {
-      setError('Task title is required');
+      toast.error('Task title is required');
       return;
     }
 
     if (!currentProjectId) {
-      setError('Please select a project from the sidebar first');
+      toast.error('Please select a project first');
       return;
     }
 
@@ -149,6 +150,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose }) => {
       // In future, link these to the task using saveAttachment mutation
 
       // Success - reset form and close
+      toast.success('Task created successfully');
       setTitle('');
       setDescription('');
       setDueDate('');
@@ -158,7 +160,9 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose }) => {
       onClose();
     } catch (err: any) {
       console.error('Error creating task:', err);
-      setError(err.message || 'Failed to create task');
+      // Clean up the error message from Convex (remove "Uncaught Error: " prefix if present)
+      const message = err.message ? err.message.replace('Uncaught Error: ', '') : 'Failed to create task';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -369,11 +373,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose }) => {
               )}
            </div>
 
-           {error && (
-             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium">
-               {error}
-             </div>
-           )}
+
 
         </div>
 
