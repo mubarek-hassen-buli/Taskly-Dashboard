@@ -4,6 +4,8 @@ import { useMutation, useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { signupStep2Schema, signupStep3Schema } from "../lib/validations";
 import { fileToDataUrl, validateImageFile } from "../lib/imageUpload";
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import { 
   ArrowRight, 
   User, 
@@ -273,15 +275,55 @@ const Signup: React.FC<SignupProps> = ({ onNavigate }) => {
       </div>
 
       <div className="relative group">
-        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-purple-500 transition-colors" size={20} />
-        <input 
-          type="tel" 
-          placeholder="Phone Number (Optional)" 
+        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-purple-500 transition-colors z-10" size={20} />
+        <PhoneInput
+          international
+          defaultCountry="US"
           value={formData.phone}
-          onChange={(e) => setFormData({...formData, phone: e.target.value})}
-          className="w-full bg-white/50 border border-white/40 rounded-2xl py-4 pl-12 pr-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:bg-white/80 transition-all font-medium backdrop-blur-sm"
+          onChange={(value) => setFormData({...formData, phone: value || ''})}
+          className="phone-input-custom"
+          inputComponent={({ className, ...props }) => (
+            <input
+              {...props}
+              className="w-full bg-white/50 border border-white/40 rounded-2xl py-4 pl-12 pr-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:bg-white/80 transition-all font-medium backdrop-blur-sm"
+            />
+          )}
         />
       </div>
+
+      <style>{`
+        .phone-input-custom {
+          position: relative;
+        }
+        .phone-input-custom .PhoneInputCountry {
+          position: absolute;
+          left: 2.5rem;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 10;
+        }
+        .phone-input-custom .PhoneInputCountryIcon {
+          width: 1.25rem;
+          height: 1.25rem;
+          border-radius: 0.25rem;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        .phone-input-custom .PhoneInputCountrySelect {
+          opacity: 0;
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          cursor: pointer;
+        }
+        .phone-input-custom .PhoneInputCountrySelectArrow {
+          display: none;
+        }
+        .phone-input-custom input {
+          padding-left: 5.5rem !important;
+        }
+      `}</style>
 
       <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-2xl mt-4">
          <h4 className="text-sm font-bold text-gray-900 mb-1">Almost Done!</h4>
