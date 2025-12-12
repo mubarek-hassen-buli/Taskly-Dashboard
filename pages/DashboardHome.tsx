@@ -30,6 +30,7 @@ import CreateProjectModal from '../components/modals/CreateProjectModal';
 import CreateTaskModal from '../components/modals/CreateTaskModal';
 import AddTaskModal from '../components/AddTaskModal';
 import AddMemberModal from '../components/AddMemberModal';
+import SmartTaskInput from '../components/SmartTaskInput';
 
 interface DashboardProps {
   onAddTask: () => void;
@@ -148,6 +149,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onAddTask, onAddMember }) => {
             </div>
             
             <div className="flex items-center gap-4">
+               {/* AI Smart Input */}
+               <SmartTaskInput className="w-full md:w-auto z-20" />
+
                {/* Mock Deadline Display */}
                   <div className="hidden md:flex items-center gap-3 bg-white/50 dark:bg-white/5 border border-white/60 dark:border-white/10 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm transition-all hover:bg-white/60 dark:hover:bg-white/10">
                      <div className="relative flex items-center justify-center w-3 h-3">

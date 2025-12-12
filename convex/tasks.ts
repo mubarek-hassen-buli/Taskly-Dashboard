@@ -143,6 +143,79 @@ export const create = mutation({
 });
 
 /**
+ * Create multiple tasks at once.
+ */
+export const createBatch = mutation({
+  args: {
+    projectId: v.id("projects"),
+    tasks: v.array(v.object({
+      title: v.string(),
+      description: v.string(),
+      priority: v.union(
+        v.literal("Low Priority"),
+        v.literal("Medium"),
+        v.literal("High"),
+        v.literal("Urgent")
+      ),
+      dueDate: v.optional(v.number()),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
+
+    // Check team membership
+    const membership = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_team_and_user", (q) =>
+        q.eq("teamId", project.teamId).eq("userId", userId)
+      )
+      .unique();
+
+    if (!membership) {
+      throw new Error("You are not a member of this team");
+    }
+
+    if (membership.role === "viewer") {
+      throw new Error("Viewers cannot create tasks");
+    }
+
+    const createdIds = await Promise.all(
+      args.tasks.map(async (task) => {
+        return await ctx.db.insert("tasks", {
+          title: task.title,
+          description: task.description,
+          projectId: args.projectId,
+          status: "To Do",
+          priority: task.priority,
+          dueDate: task.dueDate,
+          progress: 0,
+          attachmentsCount: 0,
+          createdBy: userId,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      })
+    );
+
+    // Notify Team (Single batched notification or one per task? One per task is noisy, let's do one batched)
+    await notifyTeam(ctx, project.teamId, {
+      type: "task_created",
+      title: "Batch Tasks Created",
+      content: `${createdIds.length} new tasks created in ${project.name} via AI`,
+      targetId: createdIds[0], // Link to first task
+      targetType: "task",
+      senderId: userId,
+    });
+
+    return createdIds;
+  },
+});
+
+/**
  * List tasks for a project with assignee details.
  */
 export const list = query({
