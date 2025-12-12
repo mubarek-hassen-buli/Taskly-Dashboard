@@ -3,6 +3,7 @@ import { Search, Bell, Sun, Moon, SlidersHorizontal, LogOut } from 'lucide-react
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
+import SearchBar from './SearchBar';
 
 interface HeaderProps {
   theme?: string;
@@ -36,22 +37,7 @@ const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onNavigate }) => {
 
       {/* Search Bar */}
       <div className="flex-1 max-w-xl mx-auto">
-        <div className="relative group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search size={18} className="text-gray-400 dark:text-gray-500" />
-          </div>
-          <input 
-            type="text" 
-            placeholder="Search here..." 
-            className="w-full pl-11 pr-24 py-3 bg-white/80 dark:bg-white/5 border border-white/40 dark:border-white/10 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-800 focus:bg-white dark:focus:bg-black/50 transition-all shadow-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 backdrop-blur-sm"
-          />
-          <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium px-2 py-1 bg-gray-100/50 dark:bg-white/10 rounded-md border border-gray-200/50 dark:border-white/5">⌘ S</span>
-            <button className="p-2 hover:bg-gray-100/50 dark:hover:bg-white/10 rounded-full text-gray-500 dark:text-gray-400 transition-colors">
-               <SlidersHorizontal size={16} />
-            </button>
-          </div>
-        </div>
+        <SearchBar />
       </div>
 
       {/* Right Actions */}
